@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 const PLAYERS = [
   { name: "Mykolov", password: "mykolov" },
   { name: "Brent", password: "brent" },
+  { name: "Johnathan", password: "johnathan" },
   { name: "Justin", password: "justin" },
   { name: "Eric", password: "eric" },
   { name: "Matthew", password: "matthew" },

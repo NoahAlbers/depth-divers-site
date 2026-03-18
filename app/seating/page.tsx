@@ -67,22 +67,9 @@ function SeatSlot({
   expanded,
 }: {
   seat: number;
-  player: string | null;
+  player: string;
   expanded: boolean;
 }) {
-  if (!player) {
-    return (
-      <div
-        className={`rounded border border-gray-700/30 px-2 py-1 text-center text-gray-600 ${
-          expanded ? "min-w-[90px] text-sm" : "min-w-[42px] text-[10px]"
-        }`}
-      >
-        <span className="text-[8px] text-gray-600">{seat} </span>
-        {expanded ? "Empty" : "---"}
-      </div>
-    );
-  }
-
   const color = getPlayerColor(player);
   const label = expanded ? player : getPlayerShort(player);
 
@@ -220,6 +207,12 @@ export default function SeatingPage() {
         </h3>
         <div className="grid gap-2 text-xs text-gray-400 sm:grid-cols-2">
           <div>
+            <span style={{ color: getPlayerColor("Johnathan") }} className="font-bold">
+              Johnathan
+            </span>
+            : Seat 1 or 6 (closest to DM)
+          </div>
+          <div>
             <span style={{ color: getPlayerColor("Eric") }} className="font-bold">
               Eric
             </span>
@@ -234,9 +227,6 @@ export default function SeatingPage() {
           <div>
             <span className="text-gray-300">Mykolov, Brent, Justin</span>: Any
             seat
-          </div>
-          <div>
-            <span className="text-gray-500">One seat remains empty</span>
           </div>
         </div>
         <div className="mt-3 text-xs text-gray-500">
