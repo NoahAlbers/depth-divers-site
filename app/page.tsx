@@ -225,7 +225,7 @@ const TAGLINES = [
 
 // --- The Surface-Dweller Commune ---
 "Calven Marr went from accountant to commune leader. The Underdark promotes aggressively.",
-Pexel doesn't want conversation. He wants someone good with their hands.",
+"Pexel doesn't want conversation. He wants someone good with their hands.",
 "Marra keeps the memorial board. Every name on it is a reason they don't go back.",
 "Calven has questions about capitalism, guild power, and why Jaedo's family lets people starve.",
 "A name on the memorial board: Mara Bophill. A relative Jaedo didn't know he'd lost.",
