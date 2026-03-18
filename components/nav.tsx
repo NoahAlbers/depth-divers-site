@@ -44,6 +44,7 @@ export function Nav() {
   ];
 
   return (
+    <>
     <nav className="sticky top-0 z-50 border-b border-[#e5c07b]/20 bg-[#0d1117]/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link
@@ -175,70 +176,72 @@ export function Nav() {
         </div>
       )}
 
-      {/* Login modal */}
-      {showLogin && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowLogin(false)}
-        >
-          <div
-            className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-4 font-cinzel text-lg text-[#e5c07b]">
-              Enter the Tavern
-            </h3>
-            <select
-              value={loginName}
-              onChange={(e) => setLoginName(e.target.value)}
-              className="mb-3 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white"
-            >
-              {ALL_CHARACTERS.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="password"
-              value={loginPassword}
-              onChange={(e) => { setLoginPassword(e.target.value); setLoginError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              placeholder="Enter your passphrase"
-              className="mb-3 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#e5c07b] focus:outline-none"
-            />
-            {loginError && (
-              <p className="mb-2 text-sm text-red-400">{loginError}</p>
-            )}
-            <button
-              onClick={handleLogin}
-              className="w-full rounded bg-[#e5c07b] px-4 py-2 text-sm font-bold text-[#0d1117] transition-colors hover:bg-[#f0d090]"
-            >
-              Enter
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Settings modal */}
-      {showSettings && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowSettings(false)}
-        >
-          <div
-            className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SettingsPanel
-              currentPlayer={currentPlayer!}
-              isDM={isDM}
-              onClose={() => setShowSettings(false)}
-            />
-          </div>
-        </div>
-      )}
     </nav>
+
+    {/* Login modal — rendered outside nav to avoid sticky/transform containing block */}
+    {showLogin && (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+        onClick={() => setShowLogin(false)}
+      >
+        <div
+          className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="mb-4 font-cinzel text-lg text-[#e5c07b]">
+            Enter the Tavern
+          </h3>
+          <select
+            value={loginName}
+            onChange={(e) => setLoginName(e.target.value)}
+            className="mb-3 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white"
+          >
+            {ALL_CHARACTERS.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="password"
+            value={loginPassword}
+            onChange={(e) => { setLoginPassword(e.target.value); setLoginError(""); }}
+            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+            placeholder="Enter your passphrase"
+            className="mb-3 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#e5c07b] focus:outline-none"
+          />
+          {loginError && (
+            <p className="mb-2 text-sm text-red-400">{loginError}</p>
+          )}
+          <button
+            onClick={handleLogin}
+            className="w-full rounded bg-[#e5c07b] px-4 py-2 text-sm font-bold text-[#0d1117] transition-colors hover:bg-[#f0d090]"
+          >
+            Enter
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* Settings modal — rendered outside nav */}
+    {showSettings && (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+        onClick={() => setShowSettings(false)}
+      >
+        <div
+          className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <SettingsPanel
+            currentPlayer={currentPlayer!}
+            isDM={isDM}
+            onClose={() => setShowSettings(false)}
+          />
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
