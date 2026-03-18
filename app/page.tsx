@@ -173,20 +173,62 @@ const TAGLINES = [
 "Dendritic says he found his own way down. Nobody has asked the obvious follow-up.",
 "The stolen boat is still docked. The duergar sailors are still waiting. Awkward.",
 
-  // --- Korvash ---
-  "Korvash was raised to purge the weak. Then he fixed a wagon. It's been confusing ever since.",
-  "Korvash doesn't know the word for 'thank you.' He's working on it.",
-  "Two go in, one comes out. Korvash always came out. He's starting to wonder if that was the point.",
-  "Friends was a word with no meaning in that place. The hooved one is rewriting the definition.",
-  "Raised in a cage, trained in a labyrinth, undone by a stuck wagon.",
+// --- Korvash ---
+"Korvash was raised to purge the weak. Then he fixed a wagon. It's been confusing ever since.",
+"Korvash doesn't know the word for 'thank you.' He's working on it.",
+"Two go in, one comes out. Korvash always came out. He's starting to wonder if that was the point.",
+"Friends was a word with no meaning in that place. The hooved one is rewriting the definition.",
+"Raised in a cage, trained in a labyrinth, undone by a stuck wagon.",
 
   // --- Knaz ---
-  "STEM-I prepared him for puzzles, traps, and illithid colonies. It did not prepare him for whatever this party is doing.",
-  "Applied Instrumentation Through Adventuring. The course name should've been a warning.",
+"STEM-I prepared him for puzzles, traps, and illithid colonies. It did not prepare him for whatever this party is doing.",
+"Applied Instrumentation Through Adventuring. The course name should've been a warning.",
 
   // --- Axiom ---
-  "Rebellion is contamination. Reset the kernel. Axiom has read his own reviews.",
-  "First of his kind. Possibly last, if the AX units catch up.",
+"Rebellion is contamination. Reset the kernel. Axiom has read his own reviews.",
+"First of his kind. Possibly last, if the AX units catch up.",
+
+// --- Silken Paths & Drow Captures ---
+"Captured by drow. Again. At this point it's a tradition.",
+"Escaping Ilvara once is lucky. Escaping her twice is personal.",
+"The party still doesn't fully understand what a Venomery is. The drow find this hilarious.",
+"Axiom catapulted a double-shrunken Knaz and called him a rat... It worked.",
+"The mushroom-shrink-into-bag-of-holding plan shouldn't have worked. And yet.",
+
+// --- Fallen & Lost NPCs ---
+"Rikky drank because he was trusting. There's a godson at the commune who doesn't know yet.",
+"Fargus Rumblefoot was dead set on getting that treasure. All his teammates died. He died too. The treasure is fine.",
+"Glabbagool just wanted friends.",
+"A sentient slime cube with a heart of gold and a diet of meat. The Underdark's most wholesome predator.",
+"Glabbagool is out there somewhere, eating things and being polite about it.",
+
+  // --- Gracklstugh Extras ---
+"560 Capital Vaulthammer: 800 gold for a cannon, 5 gold per shot. The duergar understand markup.",
+"The Council of Savants meets in a chamber full of glowing sigils, bubbling vials, and things in jars. Normal politics.",
+"Nargrim's potions work great. The side effects are just vibes. Gray skin vibes. Nightmare vibes.",
+"Ilikri sells relics of questionable authenticity with absolute confidence.",
+"Darklake Draught: darkvision for twelve hours, nightmares for free.",
+
+// --- Prince Derendil ---
+"'If I die in this form, do I go to Arvandor? Or do I rot in the Abyss with the monsters?'",
+
+// --- Helios & Voidfang (Commune) ---
+"Daryn was hurt on a foraging trip. Voidfang whispered. Helios had a choice. Voidfang always has a choice for you.",
+
+// --- Knaz at the Commune ---
+"The villagers asked Knaz to stay. Pexel offered him a job. The Underdark offered him certain death. Tough call.",
+
+// --- Tordal's Patron ---
+"'They try to hot-wire a god with cold copper.' Tordal's patron doesn't mince words.",
+"'Take the hammer, Tordal. Finish what you started.' Easy to say when you're an eldritch voice.",
+"The forge belongs to the one who can hold the heat. Tordal is still deciding if that's him.",
+
+// --- The Surface-Dweller Commune ---
+"Calven Marr went from accountant to commune leader. The Underdark promotes aggressively.",
+Pexel doesn't want conversation. He wants someone good with their hands.",
+"Marra keeps the memorial board. Every name on it is a reason they don't go back.",
+"Calven has questions about capitalism, guild power, and why Jaedo's family lets people starve.",
+"A name on the memorial board: Mara Bophill. A relative Jaedo didn't know he'd lost.",
 ];
 
 const tools = [
