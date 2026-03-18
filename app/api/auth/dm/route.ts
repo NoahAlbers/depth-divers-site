@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { ensurePlayersExist } from "@/lib/ensure-players";
 
 export async function POST(request: Request) {
   const { password } = await request.json();
 
   try {
+    await ensurePlayersExist();
+
     const dm = await prisma.player.findUnique({ where: { name: "Noah" } });
     if (!dm) {
       return NextResponse.json({ error: "DM not found" }, { status: 401 });

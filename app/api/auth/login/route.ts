@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { ensurePlayersExist } from "@/lib/ensure-players";
 
 export async function POST(request: Request) {
   const { name, password } = await request.json();
@@ -13,6 +14,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    await ensurePlayersExist();
+
     const player = await prisma.player.findUnique({ where: { name } });
     if (!player) {
       return NextResponse.json(
