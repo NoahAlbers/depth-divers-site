@@ -54,6 +54,12 @@ const TAGLINES = [
   "Baphomet's faithful called it a holy mission. The rest of us call it a Tuesday.",
   "Betraying your warship from the inside? Bold. Stupid. But bold.",
   "The difference between a smuggler and an adventurer is how the story ends.",
+  "Skerri: The Shadow Striker found the obsidian husk pretty skerri.",
+  "Diggermattock; That names rings a bell.",
+  "At what level do we get Summon Henchmen?",
+  "Foreman Grinchos did nothing wrong.",
+  "Archmage Niklas the Red? Red with the blood of the working class.",
+  "The Emerald Enclave sends it's regards.",
  
   // --- Underdark Layers ---
   "The Upperdark is where you tell yourself you can still turn back.",
@@ -108,6 +114,7 @@ const TAGLINES = [
   "Artolth nilat unelte nilt peralath — A spider without a web is no hunter.",
   "Resilsh nielquosthos nilt resilsh — Help freely offered is not free.",
   "Nilodi orhastho shiorell e farul — Weakness is the spawn of contentment.",
+  "Verdant Lock, a whatant what?",
 
   // --- Party Events ---
 "Sloobludop was a lovely city. For about five minutes.",
@@ -116,6 +123,7 @@ const TAGLINES = [
 "Pour one out for Jimjar. He'd want you to bet on which cup.",
 "Wendy survived the surface just to get taken out by a bug.",
 "Gracklstugh let them in. Gracklstugh regrets this decision.",
+"The Greengrass Festival is world-renowned for it's games and events."
 
 // --- Gracklstugh Adventures ---
 "Gronka Mithfinger does tattoos. Jaedo got a dog. Underground. As you do.",
@@ -141,7 +149,7 @@ const TAGLINES = [
 "Something out there is hunting the prototype. It's not done looking.",
 "Axiom, check your six. AX-06 isn't quitting.",
 "The elf prince of Nelrindenvane travels with the party?",
-"The Grey Gearheads think Knaz is a clone. Knaz thinks they're insane. Someone is wrong.",
+"The Grey Gearheads think Knaz is a clone. Knaz would say otherwise. Someone is wrong.",
 "Somewhere near the Neverlight Grove, someone called 'The Speaker' wears a familiar face.",
 "Knaz has never met The Speaker. The Speaker might have met Knaz.",
 
@@ -196,6 +204,7 @@ const TAGLINES = [
 
 // --- Silken Paths & Drow Captures ---
 "Captured by drow. Again. At this point it's a tradition.",
+"Tell us the story you told at the Hobgoblin toll booth garrison again, Axiom?",
 "Escaping Ilvara once is lucky. Escaping her twice is personal.",
 "The party still doesn't fully understand what a Venomery is. The drow find this hilarious.",
 "Axiom catapulted a double-shrunken Knaz and called him a rat... It worked.",
@@ -234,7 +243,7 @@ const TAGLINES = [
 "Pexel doesn't want conversation. He wants someone good with their hands.",
 "Marra keeps the memorial board. Every name on it is a reason they don't go back.",
 "Calven has questions about capitalism, guild power, and why Jaedo's family lets people starve.",
-"A name on the memorial board: Mara Bophill. A relative Jaedo didn't know he'd lost.",
+"A name on the memorial board: Evan Bophill. A relative Jaedo didn't know he'd lost.",
 ];
 
 const tools = [
