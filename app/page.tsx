@@ -48,6 +48,8 @@ const TAGLINES = [
   "Some monks left the monastery to help others. Some got kidnapped by drow. Same difference.",
   "Somewhere down here, a prototype is questioning its firmware.",
   "A good education prepares you for anything. Except maybe this.",
+  "Morgrin Tideblade cooks a mean stew.",
+  "Mekka Bronzebrow knows the way! Right?",
   "There is no lab safety protocol for the Underdark.",
   "Baphomet's faithful called it a holy mission. The rest of us call it a Tuesday.",
   "Betraying your warship from the inside? Bold. Stupid. But bold.",
@@ -128,17 +130,20 @@ const TAGLINES = [
 "The plan was to leave Gracklstugh quietly. That did not happen.",
 
 // --- Fallen Friends ---
-"Topsy and Turvey: two gnomes, one fireball, zero survivors.",
+"Topsy and Turvey: two deep-gnome were-rats, one fireball, zero survivors.",
 "Stool was a good sprout. The pit trap disagreed.",
+"What would Urdin Stonewake do?",
+"Most great fighters go out with a bang. Shuushar went out with a splat. Fitting for a pacifist.",
 "Rumpadump didn't deserve to go out like that. Nobody tell the myconids how gas bombs work.",
 "Helios is gone, but that duergar barmaid's feelings are eternal.",
 
 // --- Ongoing Mysteries ---
 "Something out there is hunting the prototype. It's not done looking.",
-"Axiom, check your six. The robots aren't quitting.",
+"Axiom, check your six. AX-06 isn't quitting.",
+"The elf prince of Nelrindenvane travels with the party?",
 "The Grey Gearheads think Knaz is a clone. Knaz thinks they're insane. Someone is wrong.",
-"Somewhere in Neverlight Grove, a derro called 'The Speaker' wears a familiar face.",
-"Knaz has never met The Speaker. The Speaker has definitely met Knaz.",
+"Somewhere near the Neverlight Grove, someone called 'The Speaker' wears a familiar face.",
+"Knaz has never met The Speaker. The Speaker might have met Knaz.",
 
 // --- Jaedo ---
 "Jaedo left his family, his city, and his reputation. He kept the cloak pin.",
