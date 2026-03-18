@@ -11,7 +11,7 @@ export function Nav() {
   const { currentPlayer, isDM, login, logout } = usePlayer();
   const [showLogin, setShowLogin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [loginName, setLoginName] = useState(PLAYERS[0].name);
+  const [loginName, setLoginName] = useState<string>(PLAYERS[0].name);
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -258,7 +258,7 @@ function SettingsPanel({
   const [pwError, setPwError] = useState(false);
 
   // DM reset
-  const [resetTarget, setResetTarget] = useState(PLAYERS[0].name);
+  const [resetTarget, setResetTarget] = useState<string>(PLAYERS[0].name);
   const [resetPw, setResetPw] = useState("");
   const [resetMsg, setResetMsg] = useState("");
   const [resetError, setResetError] = useState(false);
