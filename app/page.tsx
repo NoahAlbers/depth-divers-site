@@ -147,6 +147,8 @@ const TAGLINES = [
 "Jaedo's family tree has some new pruning options and he hasn't noticed yet.",
 "Left a monastery with a vow to help halflings. Got an albino lizard and a mephit instead.",
 "Jaedo has never felt better about himself. This is not suspicious at all.",
+"He spent 15 years at a halfling monastery learning peace. The Underdark said no.",
+"The Order of the Hin Fist taught him discipline and simplicity. Then the drow taught him captivity.",
 
 // --- Helios & Voidfang ---
 "Voidfang doesn't choose its wielder. It auditions them.",
@@ -170,6 +172,21 @@ const TAGLINES = [
 "Penny remembers Knaz. Knaz barely remembers Knaz.",
 "Dendritic says he found his own way down. Nobody has asked the obvious follow-up.",
 "The stolen boat is still docked. The duergar sailors are still waiting. Awkward.",
+
+  // --- Korvash ---
+  "Korvash was raised to purge the weak. Then he fixed a wagon. It's been confusing ever since.",
+  "Korvash doesn't know the word for 'thank you.' He's working on it.",
+  "Two go in, one comes out. Korvash always came out. He's starting to wonder if that was the point.",
+  "Friends was a word with no meaning in that place. The hooved one is rewriting the definition.",
+  "Raised in a cage, trained in a labyrinth, undone by a stuck wagon.",
+
+  // --- Knaz ---
+  "STEM-I prepared him for puzzles, traps, and illithid colonies. It did not prepare him for whatever this party is doing.",
+  "Applied Instrumentation Through Adventuring. The course name should've been a warning.",
+
+  // --- Axiom ---
+  "Rebellion is contamination. Reset the kernel. Axiom has read his own reviews.",
+  "First of his kind. Possibly last, if the AX units catch up.",
 ];
 
 const tools = [
