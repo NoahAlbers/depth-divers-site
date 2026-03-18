@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 
 const TAGLINES = [
-  // --- General Underdark ---
+  // --- General Underdark ----
   "An adventure that involves the Underdark... a whole lot of dark.",
   "Bring a torch. Then bring another one.",
   "Where the spiders are the least of your problems.",
