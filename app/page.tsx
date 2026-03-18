@@ -123,7 +123,7 @@ const TAGLINES = [
 "Pour one out for Jimjar. He'd want you to bet on which cup.",
 "Wendy survived the surface just to get taken out by a bug.",
 "Gracklstugh let them in. Gracklstugh regrets this decision.",
-"The Greengrass Festival is world-renowned for it's games and events."
+"The Greengrass Festival is world-renowned for it's games and events.",
 
 // --- Gracklstugh Adventures ---
 "Gronka Mithfinger does tattoos. Jaedo got a dog. Underground. As you do.",
