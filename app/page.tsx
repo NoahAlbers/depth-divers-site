@@ -253,27 +253,29 @@ const tools = [
 ];
 
 export default function Home() {
-  const [taglineIndex, setTaglineIndex] = useState(() =>
-  Math.floor(Math.random() * TAGLINES.length)
-);
+const [shuffledTaglines, setShuffledTaglines] = useState<string[]>(() => {
+    return [...TAGLINES].sort(() => Math.random() - 0.5);
+  });
+  const [taglineIndex, setTaglineIndex] = useState(0);
   const [fade, setFade] = useState(true);
 
-  useEffect(() => {
+useEffect(() => {
     const interval = setInterval(() => {
       setFade(false);
       setTimeout(() => {
         setTaglineIndex((prev) => {
-  let next;
-  do {
-    next = Math.floor(Math.random() * TAGLINES.length);
-  } while (next === prev);
-  return next;
-});
+          const next = prev + 1;
+          if (next >= shuffledTaglines.length) {
+            setShuffledTaglines([...TAGLINES].sort(() => Math.random() - 0.5));
+            return 0;
+          }
+          return next;
+        });
         setFade(true);
       }, 600);
     }, 5500);
     return () => clearInterval(interval);
-  }, []);
+  }, [shuffledTaglines.length]);
 
   return (
     <div className="flex min-h-[80vh] flex-col items-center justify-center">
@@ -292,7 +294,7 @@ export default function Home() {
             transition: "opacity 0.6s ease-in-out",
           }}
         >
-          {TAGLINES[taglineIndex]}
+          {shuffledTaglines[taglineIndex]}
         </p>
       </div>
 
