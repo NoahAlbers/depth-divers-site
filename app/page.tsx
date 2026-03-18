@@ -106,6 +106,70 @@ const TAGLINES = [
   "Artolth nilat unelte nilt peralath — A spider without a web is no hunter.",
   "Resilsh nielquosthos nilt resilsh — Help freely offered is not free.",
   "Nilodi orhastho shiorell e farul — Weakness is the spawn of contentment.",
+
+  // --- Party Events ---
+"Sloobludop was a lovely city. For about five minutes.",
+"If it's on the Darklake and it's not nailed down, the party will steal it.",
+"Jimjar would've bet against his own survival. He probably did.",
+"Pour one out for Jimjar. He'd want you to bet on which cup.",
+"Wendy survived the surface just to get taken out by a bug.",
+"Gracklstugh let them in. Gracklstugh regrets this decision.",
+
+// --- Gracklstugh Adventures ---
+"Gronka Mithfinger does tattoos. Jaedo got a dog. Underground. As you do.",
+"The Stone Giants were the calmest things they've met down here. That's not saying much.",
+"The Cleft District: where the derro are somehow the least weird thing happening.",
+"Never make a magic deal with a human merchant in the Underdark. Just don't.",
+"Jason said he'd handle the boat sales. Something about him said don't argue.",
+"The Shattered Spire: where gold is lost, fists are thrown, and regrets are brewed.",
+"A muscly duergar barmaid still asks about the elf. Nobody has the heart to tell her.",
+"They met Errde Blackskull. Then they un-met her. Permanently.",
+"Assassinate the overseer, steal a boat, outrun a navy. Just another Tuesday.",
+"The plan was to leave Gracklstugh quietly. That did not happen.",
+
+// --- Fallen Friends ---
+"Topsy and Turvey: two gnomes, one fireball, zero survivors.",
+"Stool was a good sprout. The pit trap disagreed.",
+"Rumpadump didn't deserve to go out like that. Nobody tell the myconids how gas bombs work.",
+"Helios is gone, but that duergar barmaid's feelings are eternal.",
+
+// --- Ongoing Mysteries ---
+"Something out there is hunting the prototype. It's not done looking.",
+"Axiom, check your six. The robots aren't quitting.",
+"The Grey Gearheads think Knaz is a clone. Knaz thinks they're insane. Someone is wrong.",
+"Somewhere in Neverlight Grove, a derro called 'The Speaker' wears a familiar face.",
+"Knaz has never met The Speaker. The Speaker has definitely met Knaz.",
+
+// --- Jaedo ---
+"Jaedo left his family, his city, and his reputation. He kept the cloak pin.",
+"Making a deal with a Rakshasa is bold. Not reading the fine print is Jaedo.",
+"'I agreed it won't hurt my descendants.' Cool. How are your aunts doing, Jaedo?",
+"Jaedo's family tree has some new pruning options and he hasn't noticed yet.",
+"Left a monastery with a vow to help halflings. Got an albino lizard and a mephit instead.",
+"Jaedo has never felt better about himself. This is not suspicious at all.",
+
+// --- Helios & Voidfang ---
+"Voidfang doesn't choose its wielder. It auditions them.",
+"Helios wielded the knife with joy. The knife wielded him right back.",
+"Some weapons are cursed. Some weapons are hungry. Voidfang is both.",
+"Helios fell to Ilvara. Voidfang didn't mourn. It just changed hands.",
+"Friends don't let friends bond with sentient knives.",
+
+// --- Gracklstugh Civil War ---
+"Gracklstugh is at war. The party had absolutely nothing to do with this. Definitely.",
+"The Second Uniting War of Gracklstugh has begun. Somebody left the door open on the way out.",
+
+// --- Neverlight Grove ---
+"Something is rotting in the grove. The myconids are pretending it isn't.",
+"Two sovereigns. One grove. Zero agreement.",
+"The circle of masters had deformed bodies and a giant maggot. Standard grove visit.",
+
+// --- Ongoing Threads ---
+"Tordal was in that tent a long time. He hasn't said much about it since.",
+"A voice in the memory banks said he was never meant to dream. Axiom dreams anyway.",
+"Penny remembers Knaz. Knaz barely remembers Knaz.",
+"Dendritic says he found his own way down. Nobody has asked the obvious follow-up.",
+"The stolen boat is still docked. The duergar sailors are still waiting. Awkward.",
 ];
 
 const tools = [
