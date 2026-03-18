@@ -8,6 +8,12 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
+model Player {
+  id       String @id @default(cuid())
+  name     String @unique
+  password String
+}
+
 model Message {
   id        String   @id @default(cuid())
   from      String

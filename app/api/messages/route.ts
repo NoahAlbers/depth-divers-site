@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   }
 
   // DM sees all messages
-  if ((player === "DM" || player === "Noah") && isDMAuthorized(request)) {
+  if ((player === "DM" || player === "Noah") && (await isDMAuthorized(request))) {
     const messages = await prisma.message.findMany({
       orderBy: { createdAt: "desc" },
     });

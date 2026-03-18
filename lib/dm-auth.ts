@@ -1,10 +1,15 @@
-const DM_PASSWORD = process.env.DM_PASSWORD || "noah";
+import bcrypt from "bcryptjs";
+import { prisma } from "./prisma";
 
-export function verifyDMPassword(password: string): boolean {
-  return password === DM_PASSWORD;
-}
-
-export function isDMAuthorized(request: Request): boolean {
+export async function isDMAuthorized(request: Request): Promise<boolean> {
   const authHeader = request.headers.get("x-dm-password");
-  return authHeader !== null && verifyDMPassword(authHeader);
+  if (!authHeader) return false;
+
+  try {
+    const dm = await prisma.player.findUnique({ where: { name: "Noah" } });
+    if (!dm) return false;
+    return bcrypt.compare(authHeader, dm.password);
+  } catch {
+    return false;
+  }
 }

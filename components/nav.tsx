@@ -5,33 +5,37 @@ import { useState } from "react";
 import { usePlayer } from "@/lib/player-context";
 import { PLAYERS, DM } from "@/lib/players";
 
+const ALL_CHARACTERS = [...PLAYERS, DM];
+
 export function Nav() {
-  const { currentPlayer, setCurrentPlayer, isDM, setDMAuth } = usePlayer();
-  const [showSelector, setShowSelector] = useState(false);
-  const [showDMLogin, setShowDMLogin] = useState(false);
-  const [dmPassword, setDMPassword] = useState("");
-  const [dmError, setDMError] = useState(false);
+  const { currentPlayer, isDM, login, logout } = usePlayer();
+  const [showLogin, setShowLogin] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [loginName, setLoginName] = useState(PLAYERS[0].name);
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleDMLogin = async () => {
-    try {
-      const res = await fetch("/api/auth/dm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: dmPassword }),
-      });
-      if (res.ok) {
-        setDMAuth(true, dmPassword);
-        setShowDMLogin(false);
-        setDMPassword("");
-        setDMError(false);
-      } else {
-        setDMError(true);
-      }
-    } catch {
-      setDMError(true);
+  const handleLogin = async () => {
+    setLoginError("");
+    const result = await login(loginName, loginPassword);
+    if (result.success) {
+      setShowLogin(false);
+      setLoginPassword("");
+    } else {
+      setLoginError(result.error || "Login failed");
     }
   };
+
+  const handleLogout = () => {
+    logout();
+    setShowLogin(false);
+    setShowSettings(false);
+  };
+
+  const playerColor = currentPlayer
+    ? ALL_CHARACTERS.find((p) => p.name === currentPlayer)?.color
+    : undefined;
 
   const navLinks = [
     { href: "/seating", label: "Seating" },
@@ -63,48 +67,41 @@ export function Nav() {
 
           <div className="flex items-center gap-3 border-l border-gray-700 pl-4">
             {currentPlayer ? (
-              <button
-                onClick={() => setShowSelector(true)}
-                className="text-sm text-gray-400 transition-colors hover:text-white"
-              >
-                Logged in as{" "}
-                <span
-                  style={{ color: currentPlayer === DM.name ? DM.color : PLAYERS.find(p => p.name === currentPlayer)?.color }}
-                  className="font-bold"
-                >
-                  {currentPlayer}
+              <>
+                <span className="text-sm text-gray-400">
+                  Logged in as{" "}
+                  <span style={{ color: playerColor }} className="font-bold">
+                    {currentPlayer}
+                  </span>
                 </span>
-              </button>
+                {isDM && (
+                  <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold text-white">
+                    DM
+                  </span>
+                )}
+                <button
+                  onClick={() => setShowSettings(true)}
+                  className="text-gray-400 transition-colors hover:text-white"
+                  title="Settings"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="text-xs text-gray-500 transition-colors hover:text-gray-300"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <button
-                onClick={() => setShowSelector(true)}
+                onClick={() => setShowLogin(true)}
                 className="rounded border border-[#e5c07b]/30 px-3 py-1 text-sm text-[#e5c07b] transition-colors hover:bg-[#e5c07b]/10"
               >
-                Select Player
-              </button>
-            )}
-
-            {isDM && (
-              <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold text-white">
-                DM
-              </span>
-            )}
-
-            {!isDM && (
-              <button
-                onClick={() => setShowDMLogin(true)}
-                className="text-xs text-gray-500 transition-colors hover:text-gray-300"
-              >
-                DM Mode
-              </button>
-            )}
-
-            {isDM && (
-              <button
-                onClick={() => setDMAuth(false)}
-                className="text-xs text-gray-500 transition-colors hover:text-gray-300"
-              >
-                Exit DM
+                Login
               </button>
             )}
           </div>
@@ -140,97 +137,81 @@ export function Nav() {
           ))}
           <div className="mt-2 border-t border-gray-800 pt-2">
             {currentPlayer ? (
-              <button
-                onClick={() => { setShowSelector(true); setMobileMenuOpen(false); }}
-                className="block py-2 text-sm text-gray-400"
-              >
-                Playing as <span className="font-bold text-white">{currentPlayer}</span>
-              </button>
+              <>
+                <div className="flex items-center gap-2 py-2">
+                  <span className="text-sm text-gray-400">
+                    <span style={{ color: playerColor }} className="font-bold">
+                      {currentPlayer}
+                    </span>
+                  </span>
+                  {isDM && (
+                    <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold text-white">
+                      DM
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }}
+                  className="block py-2 text-sm text-gray-400 hover:text-white"
+                >
+                  Settings
+                </button>
+                <button
+                  onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                  className="block py-2 text-xs text-gray-500"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
               <button
-                onClick={() => { setShowSelector(true); setMobileMenuOpen(false); }}
+                onClick={() => { setShowLogin(true); setMobileMenuOpen(false); }}
                 className="block py-2 text-sm text-[#e5c07b]"
               >
-                Select Player
+                Login
               </button>
-            )}
-            {!isDM ? (
-              <button
-                onClick={() => { setShowDMLogin(true); setMobileMenuOpen(false); }}
-                className="block py-2 text-xs text-gray-500"
-              >
-                DM Mode
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 py-2">
-                <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold text-white">DM</span>
-                <button onClick={() => setDMAuth(false)} className="text-xs text-gray-500">
-                  Exit
-                </button>
-              </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Player selector modal */}
-      {showSelector && (
+      {/* Login modal */}
+      {showLogin && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowSelector(false)}
+          onClick={() => setShowLogin(false)}
         >
           <div
             className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-4 font-cinzel text-lg text-[#e5c07b]">
-              Select Your Character
+              Enter the Tavern
             </h3>
-            <div className="flex flex-col gap-2">
-              {PLAYERS.map((player) => (
-                <button
-                  key={player.name}
-                  onClick={() => {
-                    setCurrentPlayer(player.name);
-                    setShowSelector(false);
-                  }}
-                  className="rounded px-4 py-2 text-left text-sm font-medium transition-colors hover:bg-white/5"
-                  style={{ color: player.color }}
-                >
-                  {player.name}
-                </button>
+            <select
+              value={loginName}
+              onChange={(e) => setLoginName(e.target.value)}
+              className="mb-3 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white"
+            >
+              {ALL_CHARACTERS.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DM login modal */}
-      {showDMLogin && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowDMLogin(false)}
-        >
-          <div
-            className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-4 font-cinzel text-lg text-[#e5c07b]">
-              DM Authentication
-            </h3>
+            </select>
             <input
               type="password"
-              value={dmPassword}
-              onChange={(e) => { setDMPassword(e.target.value); setDMError(false); }}
-              onKeyDown={(e) => e.key === "Enter" && handleDMLogin()}
-              placeholder="Enter DM password"
+              value={loginPassword}
+              onChange={(e) => { setLoginPassword(e.target.value); setLoginError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              placeholder="Enter your passphrase"
               className="mb-3 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#e5c07b] focus:outline-none"
             />
-            {dmError && (
-              <p className="mb-2 text-sm text-red-400">Incorrect password</p>
+            {loginError && (
+              <p className="mb-2 text-sm text-red-400">{loginError}</p>
             )}
             <button
-              onClick={handleDMLogin}
+              onClick={handleLogin}
               className="w-full rounded bg-[#e5c07b] px-4 py-2 text-sm font-bold text-[#0d1117] transition-colors hover:bg-[#f0d090]"
             >
               Enter
@@ -238,6 +219,209 @@ export function Nav() {
           </div>
         </div>
       )}
+
+      {/* Settings modal */}
+      {showSettings && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShowSettings(false)}
+        >
+          <div
+            className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SettingsPanel
+              currentPlayer={currentPlayer!}
+              isDM={isDM}
+              onClose={() => setShowSettings(false)}
+            />
+          </div>
+        </div>
+      )}
     </nav>
+  );
+}
+
+function SettingsPanel({
+  currentPlayer,
+  isDM,
+  onClose,
+}: {
+  currentPlayer: string;
+  isDM: boolean;
+  onClose: () => void;
+}) {
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwMsg, setPwMsg] = useState("");
+  const [pwError, setPwError] = useState(false);
+
+  // DM reset
+  const [resetTarget, setResetTarget] = useState(PLAYERS[0].name);
+  const [resetPw, setResetPw] = useState("");
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetError, setResetError] = useState(false);
+
+  const handleChangePassword = async () => {
+    setPwMsg("");
+    setPwError(false);
+
+    if (newPw !== confirmPw) {
+      setPwMsg("New passwords do not match");
+      setPwError(true);
+      return;
+    }
+    if (!newPw) {
+      setPwMsg("New password cannot be empty");
+      setPwError(true);
+      return;
+    }
+
+    const res = await fetch("/api/auth/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: currentPlayer,
+        currentPassword: currentPw,
+        newPassword: newPw,
+      }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      setPwMsg("Password changed successfully");
+      setPwError(false);
+      setCurrentPw("");
+      setNewPw("");
+      setConfirmPw("");
+    } else {
+      setPwMsg(data.error || "Failed to change password");
+      setPwError(true);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    setResetMsg("");
+    setResetError(false);
+
+    if (!resetPw) {
+      setResetMsg("New password cannot be empty");
+      setResetError(true);
+      return;
+    }
+
+    const dmPw = localStorage.getItem("dnd-dm-password") || "";
+    const res = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-dm-password": dmPw,
+      },
+      body: JSON.stringify({
+        targetPlayer: resetTarget,
+        newPassword: resetPw,
+      }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      setResetMsg(`Password reset for ${resetTarget}`);
+      setResetError(false);
+      setResetPw("");
+    } else {
+      setResetMsg(data.error || "Reset failed");
+      setResetError(true);
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="mb-4 font-cinzel text-lg text-[#e5c07b]">Settings</h3>
+
+      {/* Change own password */}
+      <div className="mb-6">
+        <h4 className="mb-2 text-sm font-bold text-gray-300">Change Password</h4>
+        <input
+          type="password"
+          value={currentPw}
+          onChange={(e) => setCurrentPw(e.target.value)}
+          placeholder="Current password"
+          className="mb-2 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#e5c07b] focus:outline-none"
+        />
+        <input
+          type="password"
+          value={newPw}
+          onChange={(e) => setNewPw(e.target.value)}
+          placeholder="New password"
+          className="mb-2 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#e5c07b] focus:outline-none"
+        />
+        <input
+          type="password"
+          value={confirmPw}
+          onChange={(e) => setConfirmPw(e.target.value)}
+          placeholder="Confirm new password"
+          onKeyDown={(e) => e.key === "Enter" && handleChangePassword()}
+          className="mb-2 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#e5c07b] focus:outline-none"
+        />
+        {pwMsg && (
+          <p className={`mb-2 text-sm ${pwError ? "text-red-400" : "text-green-400"}`}>
+            {pwMsg}
+          </p>
+        )}
+        <button
+          onClick={handleChangePassword}
+          className="w-full rounded bg-[#e5c07b] px-4 py-2 text-sm font-bold text-[#0d1117] transition-colors hover:bg-[#f0d090]"
+        >
+          Change Password
+        </button>
+      </div>
+
+      {/* DM: Reset player passwords */}
+      {isDM && (
+        <div className="border-t border-gray-700 pt-4">
+          <h4 className="mb-2 text-sm font-bold text-gray-300">
+            DM: Reset Player Password
+          </h4>
+          <select
+            value={resetTarget}
+            onChange={(e) => setResetTarget(e.target.value)}
+            className="mb-2 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white"
+          >
+            {PLAYERS.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="password"
+            value={resetPw}
+            onChange={(e) => setResetPw(e.target.value)}
+            placeholder="New password for player"
+            onKeyDown={(e) => e.key === "Enter" && handleResetPassword()}
+            className="mb-2 w-full rounded border border-gray-700 bg-[#0d1117] px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-[#e5c07b] focus:outline-none"
+          />
+          {resetMsg && (
+            <p className={`mb-2 text-sm ${resetError ? "text-red-400" : "text-green-400"}`}>
+              {resetMsg}
+            </p>
+          )}
+          <button
+            onClick={handleResetPassword}
+            className="w-full rounded bg-[#e5c07b] px-4 py-2 text-sm font-bold text-[#0d1117] transition-colors hover:bg-[#f0d090]"
+          >
+            Reset Password
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={onClose}
+        className="mt-4 w-full rounded border border-gray-700 px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white"
+      >
+        Close
+      </button>
+    </div>
   );
 }

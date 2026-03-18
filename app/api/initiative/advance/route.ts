@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isDMAuthorized } from "@/lib/dm-auth";
 
 export async function POST(request: Request) {
-  if (!isDMAuthorized(request)) {
+  if (!(await isDMAuthorized(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
