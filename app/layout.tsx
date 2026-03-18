@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "The Adventurer's Table",
+  title: "Depth Divers",
   description: "Campaign tools for the party",
 };
 

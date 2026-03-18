@@ -46,7 +46,7 @@ export function Nav() {
           href="/"
           className="font-cinzel text-lg font-bold text-[#e5c07b] transition-colors hover:text-[#f0d090]"
         >
-          The Adventurer&apos;s Table
+          Depth Divers
         </Link>
 
         {/* Desktop nav */}
@@ -176,11 +176,11 @@ export function Nav() {
       {/* Player selector modal */}
       {showSelector && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setShowSelector(false)}
         >
           <div
-            className="w-80 rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
+            className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-4 font-cinzel text-lg text-[#e5c07b]">
@@ -208,11 +208,11 @@ export function Nav() {
       {/* DM login modal */}
       {showDMLogin && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setShowDMLogin(false)}
         >
           <div
-            className="w-80 rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
+            className="w-full max-w-[400px] max-h-[90vh] overflow-y-auto rounded-lg border border-[#e5c07b]/20 bg-[#161b22] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-4 font-cinzel text-lg text-[#e5c07b]">
