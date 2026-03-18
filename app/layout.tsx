@@ -1,0 +1,41 @@
+import type { Metadata } from "next";
+import { Cinzel, JetBrains_Mono } from "next/font/google";
+import { Nav } from "@/components/nav";
+import { PlayerProvider } from "@/lib/player-context";
+import "./globals.css";
+
+const cinzel = Cinzel({
+  variable: "--font-cinzel",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "The Adventurer's Table",
+  description: "Campaign tools for the party",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className="dark">
+      <body
+        className={`${cinzel.variable} ${jetbrainsMono.variable} min-h-screen bg-background text-foreground antialiased`}
+      >
+        <PlayerProvider>
+          <Nav />
+          <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+        </PlayerProvider>
+      </body>
+    </html>
+  );
+}
