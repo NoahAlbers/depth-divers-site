@@ -192,6 +192,7 @@ const TAGLINES = [
   // --- Axiom ---
 "Rebellion is contamination. Reset the kernel. Axiom has read his own reviews.",
 "First of his kind. Possibly last, if the AX units catch up.",
+"Do you think AX-007 is a secret agenct robot?",
 
 // --- Silken Paths & Drow Captures ---
 "Captured by drow. Again. At this point it's a tradition.",
