@@ -152,96 +152,96 @@ export function Nav() {
         </button>
       </div>
 
-      {/* Mobile menu — slide-in from right */}
+    </nav>
+
+    {/* Mobile menu — rendered outside nav to avoid sticky stacking context trapping z-index */}
+    <div
+      className={`fixed inset-0 z-[100] md:hidden transition-opacity duration-300 ${
+        mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      }`}
+    >
+      {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-[100] md:hidden transition-opacity duration-300 ${
-          mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        className="absolute inset-0 bg-black/50"
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      {/* Panel */}
+      <div
+        className={`absolute right-0 top-0 h-full w-72 border-l border-gray-800 bg-[#0d1117] px-4 py-4 transition-transform duration-300 ease-in-out ${
+          mobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* Backdrop */}
-        <div
-          className="absolute inset-0 bg-black/50"
+        {/* Close button */}
+        <button
           onClick={() => setMobileMenuOpen(false)}
-        />
-        {/* Panel */}
-        <div
-          className={`absolute right-0 top-0 h-full w-72 border-l border-gray-800 bg-[#0d1117] px-4 py-4 transition-transform duration-300 ease-in-out ${
-            mobileMenuOpen ? "translate-x-0" : "translate-x-full"
-          }`}
+          className="mb-4 text-gray-400 hover:text-white"
         >
-          {/* Close button */}
-          <button
-            onClick={() => setMobileMenuOpen(false)}
-            className="mb-4 text-gray-400 hover:text-white"
-          >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
 
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm text-gray-300 hover:text-[#e5c07b]"
-            >
-              {link.label}
-              {link.href === "/messages" && totalUnread > 0 && (
-                <UnreadBadge count={totalUnread} className="ml-1" />
-              )}
-            </Link>
-          ))}
-          <div className="mt-2 border-t border-gray-800 pt-2">
-            {currentPlayer ? (
-              <>
-                <div className="flex items-center gap-2 py-2">
-                  <span className="text-sm text-gray-400">
-                    <span style={{ color: playerColor }} className="font-bold">
-                      {displayPlayer}
-                    </span>
-                  </span>
-                  {effectiveIsDM && (
-                    <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold text-white">
-                      DM
-                    </span>
-                  )}
-                </div>
-                {pushSupported && (
-                  <Link
-                    href="/notifications"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`block py-2 text-sm ${pushSubscribed ? "text-[#e5c07b]" : "text-gray-400 hover:text-white"}`}
-                  >
-                    {pushSubscribed ? "Notifications On" : "Enable Notifications"}
-                  </Link>
-                )}
-                <button
-                  onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }}
-                  className="block py-2 text-sm text-gray-400 hover:text-white"
-                >
-                  Settings
-                </button>
-                <button
-                  onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-                  className="block py-2 text-xs text-gray-500"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => { setShowLogin(true); setMobileMenuOpen(false); }}
-                className="block py-2 text-sm text-[#e5c07b]"
-              >
-                Login
-              </button>
+        {navLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            onClick={() => setMobileMenuOpen(false)}
+            className="block py-2 text-sm text-gray-300 hover:text-[#e5c07b]"
+          >
+            {link.label}
+            {link.href === "/messages" && totalUnread > 0 && (
+              <UnreadBadge count={totalUnread} className="ml-1" />
             )}
-          </div>
+          </Link>
+        ))}
+        <div className="mt-2 border-t border-gray-800 pt-2">
+          {currentPlayer ? (
+            <>
+              <div className="flex items-center gap-2 py-2">
+                <span className="text-sm text-gray-400">
+                  <span style={{ color: playerColor }} className="font-bold">
+                    {displayPlayer}
+                  </span>
+                </span>
+                {effectiveIsDM && (
+                  <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold text-white">
+                    DM
+                  </span>
+                )}
+              </div>
+              {pushSupported && (
+                <Link
+                  href="/notifications"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block py-2 text-sm ${pushSubscribed ? "text-[#e5c07b]" : "text-gray-400 hover:text-white"}`}
+                >
+                  {pushSubscribed ? "Notifications On" : "Enable Notifications"}
+                </Link>
+              )}
+              <button
+                onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }}
+                className="block py-2 text-sm text-gray-400 hover:text-white"
+              >
+                Settings
+              </button>
+              <button
+                onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                className="block py-2 text-xs text-gray-500"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => { setShowLogin(true); setMobileMenuOpen(false); }}
+              className="block py-2 text-sm text-[#e5c07b]"
+            >
+              Login
+            </button>
+          )}
         </div>
       </div>
-
-    </nav>
+    </div>
 
     {/* Login modal — rendered outside nav to avoid sticky/transform containing block */}
     {showLogin && (
