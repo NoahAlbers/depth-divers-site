@@ -34,7 +34,8 @@ export async function POST(request: Request) {
 
     const isDM = name === "Noah";
     return NextResponse.json({ success: true, name: player.name, isDM });
-  } catch {
+} catch (error) {
+  console.error("Login error:", error);
     return NextResponse.json(
       { error: "Authentication failed" },
       { status: 500 }
