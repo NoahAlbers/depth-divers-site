@@ -5,16 +5,28 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
   type ReactNode,
 } from "react";
 
 interface PlayerContextType {
+  // Real auth state
   currentPlayer: string | null;
   isDM: boolean;
   dmPassword: string | null;
   login: (name: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   setDMAuth: (authenticated: boolean, password?: string) => void;
+
+  // Impersonation
+  isImpersonating: boolean;
+  impersonatedPlayer: string | null;
+  startImpersonating: (playerName: string) => void;
+  stopImpersonating: () => void;
+
+  // Effective values — use these in all UI and API calls
+  effectivePlayer: string | null;
+  effectiveIsDM: boolean;
 }
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -24,6 +36,12 @@ const PlayerContext = createContext<PlayerContextType>({
   login: async () => ({ success: false }),
   logout: () => {},
   setDMAuth: () => {},
+  isImpersonating: false,
+  impersonatedPlayer: null,
+  startImpersonating: () => {},
+  stopImpersonating: () => {},
+  effectivePlayer: null,
+  effectiveIsDM: false,
 });
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
@@ -31,6 +49,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isDM, setIsDM] = useState(false);
   const [dmPassword, setDmPassword] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [impersonatedPlayer, setImpersonatedPlayer] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -40,6 +59,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (dmAuth === "true") setIsDM(true);
     const storedDmPw = localStorage.getItem("dnd-dm-password");
     if (storedDmPw) setDmPassword(storedDmPw);
+
+    // Restore impersonation from sessionStorage
+    const storedImpersonate = sessionStorage.getItem("dnd-impersonate");
+    if (storedImpersonate) setImpersonatedPlayer(storedImpersonate);
   }, []);
 
   const login = async (
@@ -78,9 +101,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setCurrentPlayer(null);
     setIsDM(false);
     setDmPassword(null);
+    setImpersonatedPlayer(null);
     localStorage.removeItem("dnd-player");
     localStorage.removeItem("dnd-dm-auth");
     localStorage.removeItem("dnd-dm-password");
+    sessionStorage.removeItem("dnd-impersonate");
   };
 
   const setDMAuth = (authenticated: boolean, password?: string) => {
@@ -99,11 +124,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const startImpersonating = useCallback((playerName: string) => {
+    setImpersonatedPlayer(playerName);
+    sessionStorage.setItem("dnd-impersonate", playerName);
+  }, []);
+
+  const stopImpersonating = useCallback(() => {
+    setImpersonatedPlayer(null);
+    sessionStorage.removeItem("dnd-impersonate");
+  }, []);
+
+  const isImpersonating = isDM && impersonatedPlayer !== null;
+  const effectivePlayer = isImpersonating
+    ? impersonatedPlayer
+    : isDM
+      ? "Noah"
+      : currentPlayer;
+  const effectiveIsDM = isDM && !isImpersonating;
+
   if (!mounted) return null;
 
   return (
     <PlayerContext.Provider
-      value={{ currentPlayer, isDM, dmPassword, login, logout, setDMAuth }}
+      value={{
+        currentPlayer,
+        isDM,
+        dmPassword,
+        login,
+        logout,
+        setDMAuth,
+        isImpersonating,
+        impersonatedPlayer,
+        startImpersonating,
+        stopImpersonating,
+        effectivePlayer,
+        effectiveIsDM,
+      }}
     >
       {children}
     </PlayerContext.Provider>

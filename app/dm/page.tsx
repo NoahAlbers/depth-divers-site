@@ -56,16 +56,79 @@ function DMDashboard({ dmPassword }: { dmPassword: string }) {
 
   return (
     <div>
-      <h1 className="mb-6 font-cinzel text-3xl font-bold text-gold">
-        DM Area
-      </h1>
+      <div className="mb-6 flex items-center gap-3">
+        <h1 className="font-cinzel text-3xl font-bold text-gold">
+          DM Area
+        </h1>
+        <EnvironmentBadge />
+      </div>
       <div className="grid gap-6 lg:grid-cols-2">
+        <ImpersonateSection />
         <RecapRandomizer />
         <SeatingControls headers={headers} />
         <InitiativeControls headers={headers} />
         <GameLauncher headers={headers} />
         <PlaceholderCard title="Session Notes" icon="📝" />
       </div>
+    </div>
+  );
+}
+
+/* ===== IMPERSONATE SECTION ===== */
+
+function ImpersonateSection() {
+  const { isImpersonating, impersonatedPlayer, startImpersonating, stopImpersonating } = usePlayer();
+  const [selected, setSelected] = useState<string>(PLAYERS[0].name);
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <h2 className="mb-3 font-cinzel text-lg font-bold text-gold">
+        Impersonate Player
+      </h2>
+
+      {isImpersonating ? (
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-400">
+            Viewing as{" "}
+            <span
+              className="font-bold"
+              style={{ color: getPlayerColor(impersonatedPlayer || "") }}
+            >
+              {impersonatedPlayer}
+            </span>
+          </span>
+          <button
+            onClick={stopImpersonating}
+            className="rounded border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/10"
+          >
+            Stop Impersonating
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            className="flex-1 rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white"
+          >
+            {PLAYERS.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => startImpersonating(selected)}
+            className="rounded bg-gold px-4 py-2 text-sm font-bold text-background hover:bg-[#f0d090]"
+          >
+            View as {selected}
+          </button>
+        </div>
+      )}
+
+      <p className="mt-2 text-[10px] text-gray-600">
+        See the site exactly as this player does. Clears when you close the tab.
+      </p>
     </div>
   );
 }
@@ -553,6 +616,28 @@ function GameLauncher({
         <p className="text-xs text-gray-500">Select a game to launch.</p>
       )}
     </div>
+  );
+}
+
+/* ===== ENVIRONMENT BADGE ===== */
+
+function EnvironmentBadge() {
+  const env = process.env.NEXT_PUBLIC_ENVIRONMENT || "unknown";
+  const config: Record<string, { color: string; bg: string }> = {
+    production: { color: "#98c379", bg: "rgba(152, 195, 121, 0.15)" },
+    staging: { color: "#e5c07b", bg: "rgba(229, 192, 123, 0.15)" },
+    development: { color: "#61afef", bg: "rgba(97, 175, 239, 0.15)" },
+    unknown: { color: "#888", bg: "rgba(136, 136, 136, 0.15)" },
+  };
+  const { color, bg } = config[env] || config.unknown;
+
+  return (
+    <span
+      className="rounded px-2 py-0.5 text-xs font-bold uppercase"
+      style={{ color, backgroundColor: bg, border: `1px solid ${color}30` }}
+    >
+      {env}
+    </span>
   );
 }
 

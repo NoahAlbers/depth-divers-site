@@ -275,7 +275,7 @@ const tools = [
 ];
 
 export default function Home() {
-  const { isDM } = usePlayer();
+  const { effectiveIsDM } = usePlayer();
   const [shuffledTaglines, setShuffledTaglines] = useState<string[]>(() => {
     return [...TAGLINES].sort(() => Math.random() - 0.5);
   });
@@ -339,7 +339,7 @@ export default function Home() {
             <p className="mt-2 text-sm text-gray-400">{tool.tagline}</p>
           </Link>
         ))}
-        {isDM && (
+        {effectiveIsDM && (
           <Link
             href="/dm"
             className="card-glow animate-fade-in-up group rounded-lg border border-border bg-surface p-6 text-center transition-all"

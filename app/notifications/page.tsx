@@ -5,8 +5,8 @@ import { usePlayer } from "@/lib/player-context";
 import { usePush } from "@/lib/use-push";
 
 export default function NotificationsPage() {
-  const { currentPlayer, isDM } = usePlayer();
-  const playerName = isDM ? "Noah" : currentPlayer;
+  const { currentPlayer, effectivePlayer } = usePlayer();
+  const playerName = effectivePlayer;
   const { isSupported, isSubscribed, subscribe, unsubscribe, loading } =
     usePush(playerName);
   const [testSent, setTestSent] = useState(false);

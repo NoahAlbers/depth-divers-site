@@ -11,10 +11,9 @@ import { usePush } from "@/lib/use-push";
 const ALL_CHARACTERS = [...PLAYERS, DM];
 
 export function Nav() {
-  const { currentPlayer, isDM, login, logout } = usePlayer();
-  const playerName = isDM ? "Noah" : currentPlayer;
-  const { totalUnread } = useUnreadCount(playerName);
-  const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePush(playerName);
+  const { currentPlayer, isDM, effectivePlayer, effectiveIsDM, isImpersonating, login, logout } = usePlayer();
+  const { totalUnread } = useUnreadCount(effectivePlayer);
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed } = usePush(effectivePlayer);
 
   // Update document title with unread count
   useEffect(() => {
@@ -45,8 +44,9 @@ export function Nav() {
     setShowSettings(false);
   };
 
-  const playerColor = currentPlayer
-    ? ALL_CHARACTERS.find((p) => p.name === currentPlayer)?.color
+  const displayPlayer = effectivePlayer;
+  const playerColor = displayPlayer
+    ? ALL_CHARACTERS.find((p) => p.name === displayPlayer)?.color
     : undefined;
 
   const navLinks = [
@@ -54,7 +54,7 @@ export function Nav() {
     { href: "/messages", label: "Messages" },
     { href: "/initiative", label: "Initiative" },
     { href: "/games", label: "Games" },
-    ...(isDM ? [{ href: "/dm", label: "DM Area" }] : []),
+    ...(isDM ? [{ href: "/dm", label: "DM Area" }] : []),  // real isDM — accessible even while impersonating
   ];
 
   return (
@@ -89,10 +89,10 @@ export function Nav() {
                 <span className="text-sm text-gray-400">
                   Logged in as{" "}
                   <span style={{ color: playerColor }} className="font-bold">
-                    {currentPlayer}
+                    {displayPlayer}
                   </span>
                 </span>
-                {isDM && (
+                {effectiveIsDM && (
                   <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold text-white">
                     DM
                   </span>
@@ -173,10 +173,10 @@ export function Nav() {
                 <div className="flex items-center gap-2 py-2">
                   <span className="text-sm text-gray-400">
                     <span style={{ color: playerColor }} className="font-bold">
-                      {currentPlayer}
+                      {displayPlayer}
                     </span>
                   </span>
-                  {isDM && (
+                  {effectiveIsDM && (
                     <span className="rounded bg-white/10 px-2 py-0.5 text-xs font-bold text-white">
                       DM
                     </span>

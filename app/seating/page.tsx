@@ -190,7 +190,7 @@ export default function SeatingPage() {
   const [filterPlayer, setFilterPlayer] = useState<string | null>(null);
   const [filterSeat, setFilterSeat] = useState<number | null>(null);
   const [browseOpen, setBrowseOpen] = useState(false);
-  const { isDM, dmPassword } = usePlayer();
+  const { isDM, effectiveIsDM, dmPassword } = usePlayer();
 
   const { data: lockData, refetch: refetchLock } =
     usePolling<SeatingLockData>("/api/seating/lock");
@@ -253,12 +253,12 @@ export default function SeatingPage() {
           seats={lockData.seats}
           lockedAt={lockData.lockedAt}
           onUnlock={handleUnlock}
-          isDM={isDM}
+          isDM={effectiveIsDM}
         />
       )}
 
       {/* Browse section - collapsible when locked */}
-      {isLocked && !isDM ? null : (
+      {isLocked && !effectiveIsDM ? null : (
         <>
           {isLocked ? (
             <button
@@ -364,7 +364,7 @@ export default function SeatingPage() {
                     onClick={() =>
                       setExpandedId(expandedId === arr.id ? null : arr.id)
                     }
-                    showLock={isDM && !isLocked}
+                    showLock={effectiveIsDM && !isLocked}
                     onLock={() => handleLock(arr.seats)}
                   />
                 ))}

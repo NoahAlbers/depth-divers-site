@@ -37,8 +37,8 @@ interface SessionResponse {
 
 export default function GameSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { currentPlayer, isDM, dmPassword } = usePlayer();
-  const playerName = isDM ? "Noah" : currentPlayer;
+  const { currentPlayer, isDM, effectivePlayer, effectiveIsDM, dmPassword } = usePlayer();
+  const playerName = effectivePlayer;
   const [session, setSession] = useState<SessionData | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
@@ -131,7 +131,7 @@ export default function GameSessionPage() {
           gameId={session.gameId}
           difficulty={session.difficulty}
           players={session.players}
-          isDM={isDM}
+          isDM={effectiveIsDM}
           currentPlayer={playerName || ""}
           onJoin={handleJoin}
           onStart={handleStart}
@@ -157,7 +157,7 @@ export default function GameSessionPage() {
   }
 
   // ACTIVE — DM sees leaderboard updating live
-  if (isDM) {
+  if (effectiveIsDM) {
     return (
       <div>
         <h1 className="mb-4 font-cinzel text-3xl font-bold text-gold">

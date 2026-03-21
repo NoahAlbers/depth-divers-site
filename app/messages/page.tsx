@@ -51,7 +51,7 @@ interface MessagesResponse {
 }
 
 export default function MessagesPage() {
-  const { currentPlayer, isDM } = usePlayer();
+  const { currentPlayer, effectivePlayer } = usePlayer();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "chat" | "pinboard">(
     "list"
@@ -60,7 +60,7 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
 
-  const playerName = isDM ? "Noah" : currentPlayer;
+  const playerName = effectivePlayer;
 
   // Poll conversations list
   const { data: convosData, refetch: refetchConvos } =

@@ -20,7 +20,7 @@ interface ActiveResponse {
 }
 
 export default function GamesPage() {
-  const { currentPlayer } = usePlayer();
+  const { currentPlayer, effectivePlayer } = usePlayer();
   const router = useRouter();
   const { data } = usePolling<ActiveResponse>("/api/games/active");
 

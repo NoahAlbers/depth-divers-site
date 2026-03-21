@@ -28,7 +28,7 @@ function dmHeaders(): Record<string, string> {
 }
 
 export default function InitiativePage() {
-  const { isDM, currentPlayer } = usePlayer();
+  const { isDM, currentPlayer, effectivePlayer, effectiveIsDM } = usePlayer();
   const [entries, setEntries] = useState<InitiativeEntry[]>([]);
   const [state, setState] = useState<InitiativeState>({
     round: 1,
@@ -74,12 +74,12 @@ export default function InitiativePage() {
   };
 
   const submitRoll = async () => {
-    if (!currentPlayer || myRoll === "") return;
+    if (!effectivePlayer || myRoll === "") return;
     setSubmitting(true);
     await fetch("/api/initiative/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerName: currentPlayer, roll: Number(myRoll) }),
+      body: JSON.stringify({ playerName: effectivePlayer, roll: Number(myRoll) }),
     });
     setSubmitting(false);
     fetchData();
@@ -145,7 +145,7 @@ export default function InitiativePage() {
   };
 
   const phase = state.phase || "idle";
-  const myEntry = entries.find((e) => e.name === currentPlayer && e.isPlayer);
+  const myEntry = entries.find((e) => e.name === effectivePlayer && e.isPlayer);
   const hasSubmitted = !!myEntry && myEntry.roll !== 0;
   const playerEntries = entries.filter((e) => e.isPlayer);
 
@@ -190,7 +190,7 @@ export default function InitiativePage() {
           </div>
 
           {/* Player self-submission */}
-          {currentPlayer && currentPlayer !== "Noah" && (
+          {effectivePlayer && !effectiveIsDM && (
             <div className="mb-6 rounded-lg border border-border bg-surface p-4">
               <h3 className="mb-3 font-cinzel text-sm font-bold text-gold">
                 Your Roll
@@ -198,9 +198,9 @@ export default function InitiativePage() {
               <div className="flex items-center gap-3">
                 <span
                   className="font-bold"
-                  style={{ color: getPlayerColor(currentPlayer) }}
+                  style={{ color: getPlayerColor(effectivePlayer) }}
                 >
-                  {currentPlayer}
+                  {effectivePlayer}
                 </span>
                 <input
                   type="number"
@@ -251,7 +251,7 @@ export default function InitiativePage() {
                     {submitted ? (
                       <>
                         <span className="text-green-400">&#10003;</span>
-                        {isDM && (
+                        {effectiveIsDM && (
                           <span className="text-sm font-bold text-white">
                             {entry!.roll}
                           </span>
