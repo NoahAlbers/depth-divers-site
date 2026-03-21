@@ -6,6 +6,36 @@ import { ReactionPicker } from "./reaction-picker";
 import { MessageDetailSheet } from "./message-detail-sheet";
 import { FullEmojiPicker } from "./full-emoji-picker";
 import { GroupSettings } from "./group-settings";
+import { LinkPreviewCard } from "./link-preview-card";
+import { extractUrls } from "@/lib/url-utils";
+
+const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+
+function renderTextWithLinks(text: string) {
+  const parts = text.split(URL_REGEX);
+  const urls = text.match(URL_REGEX) || [];
+
+  if (urls.length === 0) return text;
+
+  const result: (string | React.ReactElement)[] = [];
+  parts.forEach((part, i) => {
+    result.push(part);
+    if (i < urls.length) {
+      result.push(
+        <a
+          key={i}
+          href={urls[i]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gold underline hover:text-[#f0d090]"
+        >
+          {urls[i]}
+        </a>
+      );
+    }
+  });
+  return <>{result}</>;
+}
 
 const CYCLING_EMOJIS = ["👍", "😂", "❤️", "🔥"];
 
@@ -230,7 +260,7 @@ export function ChatThread({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3" style={{ overscrollBehavior: "none", WebkitOverflowScrolling: "touch" }}>
         {messages.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-500">
             No messages yet. Say something!
@@ -345,8 +375,14 @@ export function ChatThread({
                           : "text-gray-300"
                       }`}
                     >
-                      {msg.body}
+                      {renderTextWithLinks(msg.body)}
                     </p>
+                    {(() => {
+                      const urls = extractUrls(msg.body);
+                      if (urls.length === 0) return null;
+                      const msgAge = (Date.now() - new Date(msg.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+                      return <LinkPreviewCard url={urls[0]} messageAge={msgAge} />;
+                    })()}
 
                     {/* Reactions display */}
                     {msg.reactions && msg.reactions.length > 0 && (

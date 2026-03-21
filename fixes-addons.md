@@ -1,217 +1,211 @@
-# Feature Request: Message & Group Management
+# Bug Fixes & Tweaks: Pre-Phase 3 Polish
 
 **Repo**: https://github.com/NoahAlbers/depth-divers-site
 
 ---
 
-## 1. DM: Delete Any Message
+## 1. TWEAK: Navbar Link Order
 
-The DM should be able to delete any message across the entire site — in any conversation, group, or DM thread.
+Reorder the navigation links in the navbar (both the desktop inline links and the mobile hamburger menu) to match usage priority:
+
+1. Messages
+2. Initiative
+3. Games
+4. Seating
+5. DM Area (only visible when DM is authenticated)
+
+---
+
+## 2. TWEAK: Mobile Hamburger Menu — Smooth Slide Animation
+
+The mobile hamburger menu tray should slide in and out smoothly rather than appearing/disappearing instantly.
 
 **Implementation:**
-- In DM mode, every message (in any conversation) shows a small trash/delete icon on hover (desktop) or in the message detail bottom sheet (mobile)
-- Tapping delete shows a confirmation: "Delete this message? This cannot be undone."
-- On confirm, the message is hard-deleted from the database
-- The message disappears from all participants' views on the next poll cycle
-- Reactions associated with the deleted message should also be deleted (cascade)
-- In the DM Area live message feed, the DM should also be able to click a message and have a delete option
-
-**API:**
-- `DELETE /api/messages/[messageId]` — deletes a message (DM auth required)
-- Server-side: verify DM auth before allowing deletion. Regular players cannot delete messages (not even their own — keeps the record intact for the DM)
+- The menu tray should slide in from the right (or top) with a smooth CSS transition (300ms ease or similar)
+- Use `transform: translateX(100%)` → `translateX(0)` for a right-side slide, or `translateY(-100%)` → `translateY(0)` for top-down
+- Add a semi-transparent backdrop overlay behind the menu that fades in simultaneously
+- Closing the menu (tapping the X, tapping the backdrop, or tapping a link) should reverse the animation smoothly before removing the tray from the DOM
+- Avoid any "jump" or instant appearance — the transition should feel native and app-like
+- Example Tailwind approach: use `transition-transform duration-300 ease-in-out` on the tray container
 
 ---
 
-## 2. DM: Delete Any Group
+## 3. FEATURE: Link Previews & Embeds in Messages
 
-The DM should be able to delete any group chat at any time.
-
-**Implementation:**
-- In DM mode, each group chat shows a "Delete Group" option accessible via:
-  - A menu/gear icon in the group chat header (when viewing the group)
-  - A long-press or right-click on the group in the Groups list
-  - The DM Area (if group management is surfaced there)
-- Tapping delete shows a confirmation: "Delete group '[Group Name]'? All messages in this group will be permanently deleted."
-- On confirm:
-  - The group's `Conversation` record is deleted
-  - All `MessageV2` records associated with that conversation are deleted
-  - All `MessageReaction` records for those messages are deleted
-  - The `Pinboard` for that conversation is deleted
-  - All `ConversationRead` records for that conversation are deleted
-- All group members see the group disappear from their Groups tab on the next poll cycle
-- If a player currently has the deleted group open, they should be gracefully returned to the conversation list with a brief notice: "This group has been deleted."
-
-**API:**
-- `DELETE /api/messages/conversations/[conversationId]` — deletes a group and all associated data (DM auth required)
-- Server-side: verify DM auth. Verify the conversation type is "group" (DMs between players should not be deletable — only groups).
-
----
-
-## 3. Players: Rename Groups
-
-Any member of a group chat can rename it.
-
-**Implementation:**
-- In the group chat header, the group name should be **tappable/clickable** by any group member
-- Tapping opens an inline edit field (or a small modal) where they can type a new name
-- On submit, the name updates for all members
-- Max length: 50 characters
-- Empty names are not allowed — show validation if they try to submit blank
-- The conversation list updates to reflect the new name on the next poll cycle
-
-**API:**
-- `PUT /api/messages/conversations/[conversationId]` — update group details `{ name }` (requires player to be a member of the group)
-- Server-side: verify the requesting player is a member of the group. DM can also rename any group.
-
----
-
-## 4. Players: Set Group Emoji/Icon
-
-Each group chat can have a custom emoji that serves as its icon in the conversation list and header.
-
-**Implementation:**
-- In the group chat header, next to the group name, show the group emoji (or a default placeholder like 💬 if none is set)
-- Tapping the emoji opens the emoji picker (same full picker used for reactions — searchable, categorized)
-- Selecting an emoji sets it as the group's icon
-- The emoji displays:
-  - In the Groups tab conversation list (before the group name, replacing the generic group dot/icon)
-  - In the group chat header
-  - In the DM's Player Chats view for groups
-- Any group member can change the emoji at any time
-- DM can also change any group's emoji
-
-**Data Model:**
-- Add an `emoji` field to the `Conversation` model:
-  ```prisma
-  model Conversation {
-    // ... existing fields
-    emoji String? // custom emoji icon for the group, null = use default
-  }
-  ```
-
-**API:**
-- Same `PUT /api/messages/conversations/[conversationId]` endpoint — extend it to accept `{ name?, emoji? }`
-- Either field can be updated independently
-
----
-
-## 5. Group Settings Panel
-
-To house the rename and emoji options (plus future settings), add a **Group Settings** view accessible from the group chat header.
-
-**Access:**
-- In the group chat header, add a small gear/settings icon (⚙️) or make the group name + emoji area tappable
-- Opens a panel or modal with:
-
-**Contents:**
-- **Group Name**: Editable text field (current name pre-filled). Save button.
-- **Group Emoji**: Current emoji displayed. Tap to open emoji picker and change.
-- **Members**: List of all members with player colors. Shows who created the group.
-- **Request Deletion**: Button for players to request the DM delete the group (from the previous doc).
-- **Delete Group** (DM only): Visible only to DM. Immediately deletes the group with confirmation.
-
-**Mobile:**
-- Opens as a full-screen slide-in panel (similar to how the chat slides in from the conversation list)
-- Back button returns to the group chat
-
-**Desktop/Tablet:**
-- Opens as a modal or a slide-out panel on the right (where the pinboard lives — could be a tab next to pinboard)
-
----
-
-## 6. FIX: Group Deletion Request — Add Confirmation
-
-When a player taps "Request Deletion" for a group chat, they should see a confirmation dialog before the request is sent.
-
-**Flow:**
-- Player taps "Request Deletion"
-- A confirmation modal appears: "Are you sure you want to request deletion of '[Group Name]'? The DM will be notified."
-- Two buttons: "Cancel" and "Request Deletion"
-- Only on confirm does the request get sent to the DM
-- After confirming, the player sees: "Deletion request sent to the DM"
-
----
-
-## 7. TWEAK: Reaction Button — Greyscale Animated Emoji
-
-The "+" or smiley reaction button on each message should be replaced with a more dynamic, inviting design.
-
-**Implementation:**
-- The reaction trigger button displays a **greyscale emoji** that slowly **fades/cycles** between 4-6 different emojis
-- The emojis it cycles through should be the current user's **most-used reactions** (pulled from the same emoji stats used for the quick-access row). If the player doesn't have enough usage data yet, fall back to the defaults: 👍 😂 ❤️ 🔥
-- The cycle should be slow and subtle — fade transition every 3-4 seconds, not distracting
-- The emoji is rendered in **greyscale/desaturated** (CSS `filter: grayscale(100%) opacity(0.5)`) so it doesn't compete with actual reactions on the message
-- On hover (desktop), the emoji becomes full color and slightly larger as a hint that it's interactive
-- On tap, it opens the reaction picker as usual
-- This replaces the bare "+" character and the static smiley — the cycling animation makes it clear this button is for reactions without needing a tooltip
-
----
-
-## 8. FIX: Mobile Bottom Sheet — X Button Overlap
-
-On mobile, when the message detail bottom sheet slides up, the "×" close button in the top-right corner overlaps slightly with the message preview box.
-
-**Fix:**
-- Add more spacing/margin between the "×" button and the message preview container
-- The "×" should sit clearly outside the message preview box, in the top-right corner of the bottom sheet itself (not inside the message area)
-- Ensure the "×" has adequate tap target size (minimum 44x44px) and doesn't overlap with any content
-- The "×" should have a small amount of padding from the right edge of the sheet (e.g., 12-16px from both top and right edges)
-
----
-
-## 9. FEATURE: Player Color Customization
-
-Allow players to change their assigned color from the settings/profile area. This color is used across the ENTIRE site — messages, reactions, player chips, initiative tracker, seating chart, conversation list, etc.
+When a player sends a message containing a URL, the message should render a **link preview** below the message text.
 
 **Implementation:**
 
-### Settings UI
-- In the player settings area (gear icon in nav, or `/settings` page), add a **"Your Color"** section
-- Shows the player's current color as a colored circle/swatch
-- Tapping it opens a **color picker**:
-  - A grid of preset color options (12-16 curated colors that look good on the dark theme) — these should all be vibrant and distinguishable from each other
-  - Optionally: a custom hex input field for players who want a specific color
-  - A live preview showing what their name/messages will look like with the new color
-- "Save" button applies the change
+### Detecting Links
+- When a message is sent, scan the body for URLs (regex for http/https links)
+- URLs in the message text should be rendered as clickable, tappable links (styled with an underline and the player's color or a neutral accent color)
+- Links should open in a new tab (`target="_blank" rel="noopener noreferrer"`)
 
-### Data Model
-- Add a `color` field to the `Player` model:
-  ```prisma
-  model Player {
-    // ... existing fields
-    color String? // custom hex color, null = use default from config
-  }
-  ```
-- The default colors from `lib/players.ts` serve as fallbacks when `color` is null
+### Link Preview Cards
+- Below the message text, render a small **preview card** for the first URL found in the message
+- The preview card shows (when available):
+  - **Title**: The page's `<title>` or `og:title`
+  - **Description**: The page's `meta description` or `og:description` (truncated to ~120 chars)
+  - **Image**: The page's `og:image` (rendered as a small thumbnail)
+  - **Domain**: The hostname of the URL (e.g., "dnd5e.wikidot.com")
+- The preview card is styled as a compact, bordered box below the message — similar to how Discord, Slack, or iMessage render link previews
+- Tapping the preview card opens the URL in a new tab
 
-### Site-Wide Integration (CRITICAL)
-- **Everywhere** the player's color is currently referenced from the static `PLAYERS` config in `lib/players.ts`, it must now check the database `Player.color` field first, falling back to the static default if null
-- Create a utility function or hook, e.g., `getPlayerColor(playerName)`, that:
-  1. Checks if the player has a custom color in the database
-  2. Falls back to the default from the static config
-  3. Is used consistently across the entire codebase
-- This affects: message bubbles, sender name labels, conversation list entries, player chips, initiative tracker entries, seating chart cards, reaction tooltips (who reacted), read receipt names, group member lists, nav bar "Logged in as" indicator, and any other place a player's color appears
-- **Cache the player colors** on the client (e.g., in React context or a lightweight global store) to avoid fetching from the API on every render. Refresh the cache on page load or when the player changes their color.
+### Fetching Metadata
+- **Server-side**: Create an API route `GET /api/link-preview?url=[encoded_url]` that:
+  1. Fetches the URL's HTML (server-side, not client-side, to avoid CORS issues)
+  2. Parses the `<head>` for `og:title`, `og:description`, `og:image`, and fallback to `<title>` and `meta description`
+  3. Returns the metadata as JSON
+  4. **Cache results** in the database or in-memory to avoid re-fetching the same URL repeatedly
+- **Client-side**: When rendering a message with a URL, call the link preview API and display the card. Show a small loading skeleton while fetching.
+- **Rate limiting**: Only fetch previews for the first URL in a message. Don't fetch for messages older than 30 days (to avoid unnecessary API calls on scroll-back).
+- **Fallback**: If metadata can't be fetched (site blocks it, times out, etc.), just show the raw clickable URL — no preview card.
 
-### API
-- `PUT /api/auth/update-color` — `{ playerName, color }` (player can only update their own; DM can update anyone's)
-- `GET /api/players` — returns all players with their current colors (for the client-side cache)
+### Data Model (Optional Cache)
+```prisma
+model LinkPreview {
+  id          String   @id @default(cuid())
+  url         String   @unique
+  title       String?
+  description String?
+  imageUrl    String?
+  domain      String
+  fetchedAt   DateTime @default(now())
+}
+```
 
-### Constraints
-- Colors must be valid hex codes (validate on both client and server)
-- Warn the player if they pick a color that's too close to the background (#0d1117) or to another player's current color — "This color may be hard to see" or "This color is very similar to [Player]'s color"
-- DM can reset any player's color back to the default from the DM Area or settings
+### Security
+- The server-side fetcher should have a timeout (5 seconds max) and a maximum response size (1MB) to prevent abuse
+- Only fetch from http/https URLs — reject anything else
+- Sanitize all metadata before rendering (prevent XSS from malicious og:title etc.)
+- Don't fetch from internal/private IP ranges
 
 ---
 
-## 10. TWEAK: Homepage Navigation Card Order
+## 4. FIX: Mobile Keyboard Viewport Scroll (CRITICAL)
 
-Reorder the tool cards on the homepage to match priority of use:
+On mobile, when the player taps the message input to type, the browser's virtual keyboard opens and shifts/scrolls the entire viewport upward. This breaks the chat app experience — the header scrolls off screen, the layout jumps around, and it doesn't feel like a proper messaging app.
 
-1. **Messages** (most used)
-2. **Initiative Tracker**
-3. **Games**
-4. **Seating Chart**
-5. **DM Area** (only visible when DM is authenticated — hidden for regular players)
+**The goal**: When the keyboard opens, the chat input stays pinned above the keyboard, the message thread shrinks to fit the remaining space, and NOTHING ELSE moves. The header/nav stays put. No page-level scrolling.
 
-Update the `tools` array in the homepage component to reflect this order. The DM Area card should only render if the user is authenticated as DM.
+### Approach: Multi-Strategy Solution
+
+This is a notoriously tricky cross-browser problem. Use a combination of the following techniques:
+
+#### Strategy 1: VirtualKeyboard API (Chrome Android 94+)
+For browsers that support it, opt into the VirtualKeyboard API which gives full control:
+
+```javascript
+if ('virtualKeyboard' in navigator) {
+  navigator.virtualKeyboard.overlaysContent = true;
+}
+```
+
+Then use CSS environment variables to reserve space for the keyboard:
+
+```css
+.chat-container {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto env(keyboard-inset-height, 0px);
+}
+```
+
+This tells the browser: "Don't resize the viewport — let the keyboard overlay the content, and I'll handle the layout myself."
+
+#### Strategy 2: CSS Fixed Layout with Safe Area Insets (iOS Safari + Android fallback)
+Structure the chat page as a fixed full-screen layout that doesn't rely on viewport height:
+
+```css
+.chat-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chat-input-bar {
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+```
+
+Using `position: fixed` with `inset: 0` on the chat page container makes it independent of the document scroll. The message list is the only scrollable area.
+
+#### Strategy 3: Prevent Scroll on Focus (iOS Safari specific)
+iOS Safari infamously scrolls the page when focusing an input. Use the opacity animation workaround that has been widely confirmed to work:
+
+```css
+@keyframes prevent-scroll-on-focus {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.chat-input:focus {
+  animation: prevent-scroll-on-focus 0.01s;
+}
+```
+
+Additionally, on focus, immediately scroll the message thread to the bottom and prevent any document-level scrolling:
+
+```javascript
+inputElement.addEventListener('focus', () => {
+  // Prevent the page from scrolling
+  window.scrollTo(0, 0);
+  // Scroll the message list to the bottom
+  messageContainer.scrollTop = messageContainer.scrollHeight;
+});
+```
+
+#### Strategy 4: Dynamic Height Calculation with VisualViewport API
+Listen for visual viewport changes (which fire when the keyboard opens/closes) and adjust the chat container height:
+
+```javascript
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    const viewportHeight = window.visualViewport.height;
+    document.documentElement.style.setProperty(
+      '--viewport-height', 
+      `${viewportHeight}px`
+    );
+  });
+}
+```
+
+```css
+.chat-page {
+  height: var(--viewport-height, 100vh);
+  height: var(--viewport-height, 100dvh);
+}
+```
+
+#### Combining the Strategies
+- Use feature detection to apply the best strategy per browser
+- VirtualKeyboard API is the cleanest solution — use it where available (Chrome Android)
+- Fixed layout + VisualViewport is the fallback for iOS Safari and older browsers
+- The opacity animation hack is a belt-and-suspenders safety net for iOS Safari scroll prevention
+- Test on: iOS Safari, Android Chrome, and Android Samsung Browser
+
+#### Important Implementation Notes
+- The chat page (`/messages`) should use `position: fixed` for its entire layout — it should NOT be part of the normal document flow when a conversation is open
+- The message list should be the ONLY scrollable element (using `overflow-y: auto`)
+- Avoid `100vh` — it lies on mobile. Use `100dvh` (dynamic viewport height) with a fallback to the VisualViewport API calculation
+- The page-level "MESSAGES" header should already be hidden when in a chat (per previous doc) — this helps because there's less content that could potentially scroll
+- Add `overscroll-behavior: none` to the chat container to prevent pull-to-refresh and rubber-banding from interfering
+
+### References for Claude Code
+These resources contain working solutions and code samples:
+- MDN VirtualKeyboard API: https://developer.mozilla.org/en-US/docs/Web/API/VirtualKeyboard_API
+- iOS Safari opacity workaround (confirmed working): https://gist.github.com/kiding/72721a0553fa93198ae2bb6eefaa3299
+- Ionic framework's scroll assist implementation: https://github.com/ionic-team/ionic-framework/blob/main/core/src/utils/input-shims/hacks/scroll-assist.ts
+- WHATWG issue with context on the problem: https://github.com/whatwg/html/issues/8375
+- Telegram's approach to fixing Safari viewport: https://medium.com/@krutilin.sergey.ks/fixing-the-safari-mobile-resizing-bug-a-developers-guide-6568f933cde0

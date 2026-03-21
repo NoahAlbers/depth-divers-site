@@ -39,10 +39,13 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              window.scrollTo(0, 0);
+            }}
             placeholder="Type a message..."
             disabled={disabled}
             rows={1}
-            className="max-h-[100px] min-h-[44px] w-full resize-none rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-gold focus:outline-none disabled:opacity-50"
+            className="chat-input-field max-h-[100px] min-h-[44px] w-full resize-none rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-gold focus:outline-none disabled:opacity-50"
           />
           <div className="flex items-center gap-2">
             <button
