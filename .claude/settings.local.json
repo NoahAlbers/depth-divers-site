@@ -8,7 +8,10 @@
       "Bash(ls:*)",
       "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/conversations/[id]/messages\")",
       "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/conversations/[id]/read\")",
-      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/conversations/[id]/pinboard\")"
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/conversations/[id]/pinboard\")",
+      "Bash(polling)",
+      "Bash(dm-auth \")",
+      "Bash(find /c/Users/alber/Desktop/depth-divers-site/lib -type f -name *.ts)"
     ]
   }
 }

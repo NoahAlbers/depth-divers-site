@@ -53,6 +53,7 @@ export function Nav() {
     { href: "/seating", label: "Seating" },
     { href: "/messages", label: "Messages" },
     { href: "/initiative", label: "Initiative" },
+    { href: "/games", label: "Games" },
     ...(isDM ? [{ href: "/dm", label: "DM Area" }] : []),
   ];
 

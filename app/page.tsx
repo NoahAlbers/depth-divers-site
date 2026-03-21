@@ -266,6 +266,12 @@ const tools = [
     tagline: "Know when to strike",
     icon: "\u2694\uFE0F",
   },
+  {
+    href: "/games",
+    title: "Games",
+    tagline: "Compete in D&D-themed challenges",
+    icon: "\uD83C\uDFAE",
+  },
 ];
 
 export default function Home() {

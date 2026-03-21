@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePlayer } from "@/lib/player-context";
 import { PLAYERS, getPlayerColor, POLL_INTERVAL_MS } from "@/lib/players";
+import { GAMES } from "@/lib/games/registry";
 
 interface SeatingLockData {
   locked: boolean;
@@ -62,7 +63,7 @@ function DMDashboard({ dmPassword }: { dmPassword: string }) {
         <RecapRandomizer />
         <SeatingControls headers={headers} />
         <InitiativeControls headers={headers} />
-        <PlaceholderCard title="Game Launcher" icon="🎮" />
+        <GameLauncher headers={headers} />
         <PlaceholderCard title="Session Notes" icon="📝" />
       </div>
     </div>
@@ -379,6 +380,178 @@ function InitiativeControls({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ===== PLACEHOLDER ===== */
+
+/* ===== GAME LAUNCHER ===== */
+
+interface ActiveSession {
+  id: string;
+  gameId: string;
+  status: string;
+  players: string[];
+  results: { playerName: string; score: number }[];
+}
+
+function GameLauncher({
+  headers,
+}: {
+  headers: () => Record<string, string>;
+}) {
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState("medium");
+  const [launching, setLaunching] = useState(false);
+
+  const fetchActive = useCallback(async () => {
+    try {
+      const res = await fetch("/api/games/active");
+      if (res.ok) {
+        const data = await res.json();
+        setActiveSession(data.session);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchActive();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchActive();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [fetchActive]);
+
+  const handleLaunch = async () => {
+    if (!selectedGame) return;
+    setLaunching(true);
+    await fetch("/api/games/launch", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ gameId: selectedGame, difficulty }),
+    });
+    setSelectedGame(null);
+    setLaunching(false);
+    fetchActive();
+  };
+
+  const handleStart = async () => {
+    if (!activeSession) return;
+    await fetch(`/api/games/${activeSession.id}/start`, {
+      method: "POST",
+      headers: headers(),
+    });
+    fetchActive();
+  };
+
+  const handleEnd = async () => {
+    if (!activeSession) return;
+    await fetch(`/api/games/${activeSession.id}/end`, {
+      method: "POST",
+      headers: headers(),
+    });
+    fetchActive();
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <h2 className="mb-3 font-cinzel text-lg font-bold text-gold">
+        Game Launcher
+      </h2>
+
+      {/* Active session */}
+      {activeSession && (
+        <div className="mb-4 rounded border border-gold/30 bg-gold/5 p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-gold">
+                {GAMES.find((g) => g.id === activeSession.gameId)?.name || activeSession.gameId}
+              </p>
+              <p className="text-xs text-gray-400">
+                {activeSession.status.toUpperCase()} — {activeSession.players.length} players
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {activeSession.status === "lobby" && (
+                <button
+                  onClick={handleStart}
+                  className="rounded bg-gold px-3 py-1 text-xs font-bold text-background hover:bg-[#f0d090]"
+                >
+                  Start
+                </button>
+              )}
+              <button
+                onClick={handleEnd}
+                className="rounded border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/10"
+              >
+                End
+              </button>
+            </div>
+          </div>
+          {activeSession.results.length > 0 && (
+            <div className="mt-2 border-t border-gray-700 pt-2">
+              {activeSession.results.map((r) => (
+                <div key={r.playerName} className="flex items-center gap-2 text-xs">
+                  <span className="font-bold" style={{ color: getPlayerColor(r.playerName) }}>
+                    {r.playerName}
+                  </span>
+                  <span className="text-gray-400">{r.score}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Launch new game */}
+      {!activeSession && (
+        <>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            {GAMES.map((game) => (
+              <button
+                key={game.id}
+                onClick={() => setSelectedGame(game.id)}
+                className={`rounded border p-2 text-left transition-colors ${
+                  selectedGame === game.id
+                    ? "border-gold bg-gold/10"
+                    : "border-border hover:border-gray-600"
+                }`}
+              >
+                <div className="text-lg">{game.icon}</div>
+                <p className="text-xs font-bold text-gray-200">{game.name}</p>
+                <p className="text-[10px] text-gray-500">{game.category}</p>
+              </button>
+            ))}
+          </div>
+
+          {selectedGame && (
+            <div className="flex items-center gap-2">
+              <select
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+                className="rounded border border-gray-700 bg-background px-2 py-1 text-xs text-white"
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+              <button
+                onClick={handleLaunch}
+                disabled={launching}
+                className="rounded bg-gold px-3 py-1 text-xs font-bold text-background hover:bg-[#f0d090] disabled:opacity-50"
+              >
+                {launching ? "Launching..." : "Launch"}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {!activeSession && !selectedGame && (
+        <p className="text-xs text-gray-500">Select a game to launch.</p>
+      )}
     </div>
   );
 }
