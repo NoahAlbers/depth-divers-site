@@ -182,6 +182,16 @@ export default function MessagesPage() {
     refetchConvos();
   };
 
+  const handleUpdateGroup = async (data: { name?: string; emoji?: string }) => {
+    if (!selectedId || !playerName) return;
+    await fetch(`/api/conversations/${selectedId}/update`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...data, playerName }),
+    });
+    refetchConvos();
+  };
+
   const handleRequestGroupDeletion = async () => {
     if (!selectedId || !playerName || !selectedConvo) return;
     const groupName = selectedConvo.name || "this group";
@@ -283,6 +293,11 @@ export default function MessagesPage() {
                 onRemoveReaction={handleRemoveReaction}
                 onDeleteMessage={effectiveIsDM ? handleDeleteMessage : undefined}
                 onRequestGroupDeletion={handleRequestGroupDeletion}
+                onUpdateGroup={handleUpdateGroup}
+                onDeleteGroup={effectiveIsDM ? () => handleDeleteGroup(selectedId!) : undefined}
+                conversationId={selectedId || undefined}
+                conversationCreator={selectedConvo?.createdBy}
+                conversationEmoji={selectedConvo?.emoji}
                 isGroupChat={selectedConvo?.type === "group"}
                 isDM={effectiveIsDM}
                 highlightMessageId={highlightMessageId}

@@ -3,6 +3,7 @@ import { Cinzel, JetBrains_Mono } from "next/font/google";
 import { Nav } from "@/components/nav";
 import { PlayerProvider } from "@/lib/player-context";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { PlayerColorsProvider } from "@/lib/player-colors-context";
 import "./globals.css";
 
 const cinzel = Cinzel({
@@ -33,9 +34,11 @@ export default function RootLayout({
         className={`${cinzel.variable} ${jetbrainsMono.variable} min-h-screen bg-background text-foreground antialiased`}
       >
         <PlayerProvider>
-          <ImpersonationBanner />
-          <Nav />
-          <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+          <PlayerColorsProvider>
+            <ImpersonationBanner />
+            <Nav />
+            <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+          </PlayerColorsProvider>
         </PlayerProvider>
       </body>
     </html>

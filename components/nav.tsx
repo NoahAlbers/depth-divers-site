@@ -7,6 +7,7 @@ import { PLAYERS, DM } from "@/lib/players";
 import { useUnreadCount } from "@/lib/use-unread-count";
 import { UnreadBadge } from "@/components/messaging/unread-badge";
 import { usePush } from "@/lib/use-push";
+import { usePlayerColors } from "@/lib/player-colors-context";
 
 const ALL_CHARACTERS = [...PLAYERS, DM];
 
@@ -397,6 +398,9 @@ function SettingsPanel({
         </div>
       </Link>
 
+      {/* Your Color */}
+      <ColorPicker currentPlayer={currentPlayer} />
+
       {/* Change own password */}
       <div className="mb-6">
         <h4 className="mb-2 text-sm font-bold text-gray-300">Change Password</h4>
@@ -479,6 +483,112 @@ function SettingsPanel({
         className="mt-4 w-full rounded border border-gray-700 px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white"
       >
         Close
+      </button>
+    </div>
+  );
+}
+
+const PRESET_COLORS = [
+  "#e06c75", "#61afef", "#e5c07b", "#98c379", "#c678dd", "#d19a66",
+  "#56b6c2", "#be5046", "#e06ca0", "#61ef8f", "#c0c0c0", "#f0e68c",
+];
+
+function ColorPicker({ currentPlayer }: { currentPlayer: string }) {
+  const { getColor, refreshColors } = usePlayerColors();
+  const currentColor = getColor(currentPlayer);
+  const [selectedColor, setSelectedColor] = useState(currentColor);
+  const [hexInput, setHexInput] = useState(currentColor);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    if (!/^#[0-9a-fA-F]{6}$/.test(selectedColor)) return;
+    setSaving(true);
+    await fetch("/api/auth/update-color", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerName: currentPlayer, color: selectedColor }),
+    });
+    refreshColors();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleReset = async () => {
+    setSaving(true);
+    await fetch("/api/auth/update-color", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerName: currentPlayer, color: null }),
+    });
+    refreshColors();
+    setSaving(false);
+    const defaultColor = getColor(currentPlayer);
+    setSelectedColor(defaultColor);
+    setHexInput(defaultColor);
+  };
+
+  return (
+    <div className="mb-6 border-b border-gray-700 pb-4">
+      <h4 className="mb-2 text-sm font-bold text-gray-300">Your Color</h4>
+
+      {/* Preview */}
+      <div className="mb-3 flex items-center gap-2">
+        <div
+          className="h-6 w-6 rounded-full border border-gray-600"
+          style={{ backgroundColor: selectedColor }}
+        />
+        <span className="text-sm font-bold" style={{ color: selectedColor }}>
+          {currentPlayer}
+        </span>
+      </div>
+
+      {/* Preset grid */}
+      <div className="mb-3 grid grid-cols-6 gap-1.5">
+        {PRESET_COLORS.map((color) => (
+          <button
+            key={color}
+            onClick={() => { setSelectedColor(color); setHexInput(color); }}
+            className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${
+              selectedColor === color ? "border-white scale-110" : "border-transparent"
+            }`}
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </div>
+
+      {/* Hex input */}
+      <div className="mb-3 flex gap-2">
+        <input
+          value={hexInput}
+          onChange={(e) => {
+            setHexInput(e.target.value);
+            if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+              setSelectedColor(e.target.value);
+            }
+          }}
+          placeholder="#e06c75"
+          className="flex-1 rounded border border-gray-700 bg-[#0d1117] px-3 py-1 text-sm text-white font-mono focus:border-[#e5c07b] focus:outline-none"
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving || selectedColor === currentColor}
+          className="rounded bg-[#e5c07b] px-3 py-1 text-xs font-bold text-[#0d1117] disabled:opacity-50"
+        >
+          {saving ? "..." : "Save"}
+        </button>
+      </div>
+
+      {saved && (
+        <p className="mb-2 text-xs text-green-400">Color updated!</p>
+      )}
+
+      <button
+        onClick={handleReset}
+        className="text-[10px] text-gray-600 hover:text-gray-400"
+      >
+        Reset to default
       </button>
     </div>
   );

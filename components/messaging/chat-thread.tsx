@@ -5,6 +5,48 @@ import { getPlayerColor, getPlayerShort } from "@/lib/players";
 import { ReactionPicker } from "./reaction-picker";
 import { MessageDetailSheet } from "./message-detail-sheet";
 import { FullEmojiPicker } from "./full-emoji-picker";
+import { GroupSettings } from "./group-settings";
+
+const CYCLING_EMOJIS = ["👍", "😂", "❤️", "🔥"];
+
+function AnimatedReactionButton({ onClick }: { onClick: () => void }) {
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIndex((i) => (i + 1) % CYCLING_EMOJIS.length);
+        setVisible(true);
+      }, 200);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <button
+      onClick={onClick}
+      className="ml-1 rounded px-1 py-0.5 text-xs transition-all hover:scale-125"
+      title="Add reaction"
+      style={{
+        filter: "grayscale(100%)",
+        opacity: visible ? 0.4 : 0,
+        transition: "opacity 0.2s, filter 0.3s, transform 0.2s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.filter = "none";
+        e.currentTarget.style.opacity = "1";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.filter = "grayscale(100%)";
+        e.currentTarget.style.opacity = visible ? "0.4" : "0";
+      }}
+    >
+      {CYCLING_EMOJIS[index]}
+    </button>
+  );
+}
 
 interface Reaction {
   playerName: string;
@@ -30,6 +72,11 @@ interface ChatThreadProps {
   onRemoveReaction?: (messageId: string, emoji: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onRequestGroupDeletion?: () => void;
+  onUpdateGroup?: (data: { name?: string; emoji?: string }) => void;
+  onDeleteGroup?: () => void;
+  conversationId?: string;
+  conversationCreator?: string;
+  conversationEmoji?: string | null;
   isGroupChat?: boolean;
   isDM?: boolean;
   highlightMessageId?: string | null;
@@ -57,6 +104,11 @@ export function ChatThread({
   onRemoveReaction,
   onDeleteMessage,
   onRequestGroupDeletion,
+  onUpdateGroup,
+  onDeleteGroup,
+  conversationId,
+  conversationCreator,
+  conversationEmoji,
   isGroupChat,
   isDM: isDMProp,
   highlightMessageId,
@@ -70,6 +122,7 @@ export function ChatThread({
   const prevCountRef = useRef(messages.length);
   const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
   const [fullPickerMessageId, setFullPickerMessageId] = useState<string | null>(null);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   // Hover tooltip (desktop)
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
@@ -130,13 +183,13 @@ export function ChatThread({
           <h2 className="flex-1 font-cinzel text-lg font-bold text-gold">
             {conversationName}
           </h2>
-          {isGroupChat && !isDMProp && onRequestGroupDeletion && (
+          {isGroupChat && onUpdateGroup && (
             <button
-              onClick={onRequestGroupDeletion}
-              className="min-h-[44px] rounded px-2 text-[10px] text-red-400/60 transition-colors hover:text-red-400"
-              title="Request group deletion"
+              onClick={() => setShowGroupSettings(true)}
+              className="min-h-[44px] rounded px-2 text-gray-400 transition-colors hover:text-gold"
+              title="Group settings"
             >
-              🗑️
+              ⚙️
             </button>
           )}
           {onTogglePinboard && (
@@ -369,17 +422,13 @@ export function ChatThread({
                       })()}
                       <span>{relativeTime(msg.createdAt)}</span>
                       {onReact && (
-                        <button
+                        <AnimatedReactionButton
                           onClick={() =>
                             setPickerMessageId(
                               pickerMessageId === msg.id ? null : msg.id
                             )
                           }
-                          className="ml-1 rounded px-1 py-0.5 text-xs text-gray-600 opacity-60 transition-all hover:opacity-100 hover:bg-surface-light"
-                          title="Add reaction"
-                        >
-                          😊
-                        </button>
+                        />
                       )}
                       {isDMProp && onDeleteMessage && (
                         <button
@@ -436,6 +485,29 @@ export function ChatThread({
           readReceipts={readReceipts}
           onReact={onReact}
           onClose={() => setSheetMessage(null)}
+        />
+      )}
+
+      {/* Group settings modal */}
+      {showGroupSettings && isGroupChat && conversationId && onUpdateGroup && (
+        <GroupSettings
+          conversationId={conversationId}
+          name={conversationName}
+          emoji={conversationEmoji || null}
+          members={conversationMembers}
+          createdBy={conversationCreator || ""}
+          currentPlayer={currentPlayer}
+          isDM={isDMProp || false}
+          onUpdateGroup={onUpdateGroup}
+          onRequestDeletion={() => {
+            onRequestGroupDeletion?.();
+            setShowGroupSettings(false);
+          }}
+          onDeleteGroup={() => {
+            onDeleteGroup?.();
+            setShowGroupSettings(false);
+          }}
+          onClose={() => setShowGroupSettings(false)}
         />
       )}
     </div>
