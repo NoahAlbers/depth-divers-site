@@ -60,8 +60,18 @@ export async function DELETE(
     );
   }
 
-  // Delete associated data
+  // Get message IDs for cascade deletion of reactions
+  const messages = await prisma.messageV2.findMany({
+    where: { conversationId: id },
+    select: { id: true },
+  });
+  const messageIds = messages.map((m) => m.id);
+
+  // Delete associated data (reactions → messages → reads → pinboard → conversation)
   await prisma.$transaction([
+    ...(messageIds.length > 0
+      ? [prisma.messageReaction.deleteMany({ where: { messageId: { in: messageIds } } })]
+      : []),
     prisma.messageV2.deleteMany({ where: { conversationId: id } }),
     prisma.conversationRead.deleteMany({ where: { conversationId: id } }),
     prisma.pinboard.deleteMany({ where: { conversationId: id } }),

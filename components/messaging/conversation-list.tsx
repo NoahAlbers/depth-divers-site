@@ -10,6 +10,7 @@ interface ConversationItem {
   id: string;
   type: string;
   name: string | null;
+  emoji: string | null;
   members: string[];
   createdBy: string;
   lastMessage: {
@@ -27,6 +28,7 @@ interface ConversationListProps {
   currentPlayer: string;
   isDM: boolean;
   onCreateGroup: (name: string, members: string[]) => void;
+  onDeleteGroup?: (conversationId: string) => void;
 }
 
 function relativeTime(dateStr: string): string {
@@ -46,24 +48,26 @@ function ConvoRow({
   color,
   isSelected,
   onSelect,
+  onDelete,
 }: {
   convo: ConversationItem;
   displayName: string;
   color: string;
   isSelected: boolean;
   onSelect: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <button
       onClick={onSelect}
-      className={`flex w-full items-center gap-3 px-3 py-3 text-left transition-colors ${
+      className={`group flex w-full items-center gap-3 px-3 py-3 text-left transition-colors ${
         isSelected
           ? "bg-gold/10 border-l-2 border-gold"
           : "hover:bg-surface-light border-l-2 border-transparent"
       }`}
     >
       {convo.type === "group" ? (
-        <span className="flex-shrink-0 text-sm">👥</span>
+        <span className="flex-shrink-0 text-sm">{convo.emoji || "👥"}</span>
       ) : (
         <div
           className="h-3 w-3 flex-shrink-0 rounded-full"
@@ -89,6 +93,20 @@ function ConvoRow({
         )}
       </div>
       <UnreadBadge count={convo.unreadCount} />
+      {onDelete && (
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirm(`Delete "${displayName}"? All messages will be permanently deleted.`)) {
+              onDelete();
+            }
+          }}
+          className="hidden flex-shrink-0 text-[10px] text-red-400/40 hover:text-red-400 group-hover:inline"
+          title="Delete group"
+        >
+          🗑️
+        </span>
+      )}
     </button>
   );
 }
@@ -100,6 +118,7 @@ export function ConversationList({
   currentPlayer,
   isDM,
   onCreateGroup,
+  onDeleteGroup,
 }: ConversationListProps) {
   const dmTabs = isDM
     ? (["my-chats", "player-chats", "groups"] as const)
@@ -239,6 +258,7 @@ export function ConversationList({
           color={color}
           isSelected={selectedId === convo.id}
           onSelect={() => onSelect(convo.id)}
+          onDelete={isDM && convo.type === "group" && onDeleteGroup ? () => onDeleteGroup(convo.id) : undefined}
         />
       );
     });

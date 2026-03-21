@@ -23,6 +23,7 @@ interface ConversationItem {
   id: string;
   type: string;
   name: string | null;
+  emoji: string | null;
   members: string[];
   createdBy: string;
   lastMessage: {
@@ -136,6 +137,17 @@ export default function MessagesPage() {
     setSelectedId(null);
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    const { dmPassword } = await import("@/lib/player-context").then(() => {
+      return { dmPassword: localStorage.getItem("dnd-dm-password") || "" };
+    });
+    await fetch(`/api/messages/${messageId}`, {
+      method: "DELETE",
+      headers: { "x-dm-password": dmPassword },
+    });
+    fetchMessages();
+  };
+
   const handleReact = async (messageId: string, emoji: string) => {
     if (!playerName) return;
     await fetch("/api/messages/react", {
@@ -154,6 +166,20 @@ export default function MessagesPage() {
       body: JSON.stringify({ messageId, playerName, emoji }),
     });
     fetchMessages();
+  };
+
+  const handleDeleteGroup = async (conversationId: string) => {
+    const dmPw = localStorage.getItem("dnd-dm-password") || "";
+    await fetch(`/api/conversations/${conversationId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "x-dm-password": dmPw },
+      body: JSON.stringify({ deletedBy: "Noah" }),
+    });
+    if (selectedId === conversationId) {
+      setSelectedId(null);
+      setMobileView("list");
+    }
+    refetchConvos();
   };
 
   const handleRequestGroupDeletion = async () => {
@@ -235,6 +261,7 @@ export default function MessagesPage() {
             currentPlayer={playerName || ""}
             isDM={effectiveIsDM}
             onCreateGroup={handleCreateGroup}
+            onDeleteGroup={effectiveIsDM ? handleDeleteGroup : undefined}
           />
         </div>
 
@@ -254,6 +281,7 @@ export default function MessagesPage() {
                 conversationMembers={convoMembers}
                 onReact={handleReact}
                 onRemoveReaction={handleRemoveReaction}
+                onDeleteMessage={effectiveIsDM ? handleDeleteMessage : undefined}
                 onRequestGroupDeletion={handleRequestGroupDeletion}
                 isGroupChat={selectedConvo?.type === "group"}
                 isDM={effectiveIsDM}

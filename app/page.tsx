@@ -249,12 +249,6 @@ const TAGLINES = [
 
 const tools = [
   {
-    href: "/seating",
-    title: "Seating Chart",
-    tagline: "Find your place at the table",
-    icon: "\u{1FA91}",
-  },
-  {
     href: "/messages",
     title: "Secret Messages",
     tagline: "Whisper to your allies... or enemies",
@@ -271,6 +265,12 @@ const tools = [
     title: "Games",
     tagline: "Compete in D&D-themed challenges",
     icon: "\uD83C\uDFAE",
+  },
+  {
+    href: "/seating",
+    title: "Seating Chart",
+    tagline: "Find your place at the table",
+    icon: "\u{1FA91}",
   },
 ];
 

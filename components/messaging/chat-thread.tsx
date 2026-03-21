@@ -28,6 +28,7 @@ interface ChatThreadProps {
   conversationMembers?: string[];
   onReact?: (messageId: string, emoji: string) => void;
   onRemoveReaction?: (messageId: string, emoji: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
   onRequestGroupDeletion?: () => void;
   isGroupChat?: boolean;
   isDM?: boolean;
@@ -54,6 +55,7 @@ export function ChatThread({
   conversationMembers = [],
   onReact,
   onRemoveReaction,
+  onDeleteMessage,
   onRequestGroupDeletion,
   isGroupChat,
   isDM: isDMProp,
@@ -377,6 +379,19 @@ export function ChatThread({
                           title="Add reaction"
                         >
                           😊
+                        </button>
+                      )}
+                      {isDMProp && onDeleteMessage && (
+                        <button
+                          onClick={() => {
+                            if (confirm("Delete this message? This cannot be undone.")) {
+                              onDeleteMessage(msg.id);
+                            }
+                          }}
+                          className="ml-1 rounded px-1 py-0.5 text-[10px] text-red-400/40 transition-all hover:text-red-400"
+                          title="Delete message"
+                        >
+                          🗑️
                         </button>
                       )}
                     </div>

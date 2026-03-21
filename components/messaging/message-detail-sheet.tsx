@@ -116,7 +116,7 @@ export function MessageDetailSheet({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 text-gray-500 hover:text-white"
+          className="absolute right-4 top-4 z-10 flex min-h-[44px] min-w-[44px] items-center justify-center text-lg text-gray-500 hover:text-white"
         >
           ✕
         </button>

@@ -9,9 +9,10 @@ datasource db {
 }
 
 model Player {
-  id       String @id @default(cuid())
-  name     String @unique
+  id       String  @id @default(cuid())
+  name     String  @unique
   password String
+  color    String? // custom hex color, null = use default
 }
 
 model Message {
@@ -53,6 +54,7 @@ model Conversation {
   id        String   @id @default(cuid())
   type      String   // "dm" or "group"
   name      String?  // group name (null for DMs)
+  emoji     String?  // custom emoji icon for groups
   members   String   // JSON array of player names
   createdBy String
   createdAt DateTime @default(now())

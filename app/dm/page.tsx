@@ -250,6 +250,21 @@ function LiveMessageFeed({ dmPassword }: { dmPassword: string }) {
                   {msg.tag}
                 </span>
               )}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (confirm("Delete this message?")) {
+                    fetch(`/api/messages/${msg.id}`, {
+                      method: "DELETE",
+                      headers: { "x-dm-password": dmPassword },
+                    }).then(() => fetchFeed());
+                  }
+                }}
+                className="flex-shrink-0 text-red-400/30 hover:text-red-400"
+                title="Delete message"
+              >
+                🗑️
+              </button>
             </a>
           ))
         )}

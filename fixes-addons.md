@@ -1,166 +1,217 @@
-# Bug Fixes & Addons: Messaging Polish Pass
+# Feature Request: Message & Group Management
 
 **Repo**: https://github.com/NoahAlbers/depth-divers-site
 
-Reference screenshots from the current mobile and desktop builds are the basis for these fixes. This document should be treated as a follow-up to the previous messaging refinements — everything from the last round has been implemented.
+---
+
+## 1. DM: Delete Any Message
+
+The DM should be able to delete any message across the entire site — in any conversation, group, or DM thread.
+
+**Implementation:**
+- In DM mode, every message (in any conversation) shows a small trash/delete icon on hover (desktop) or in the message detail bottom sheet (mobile)
+- Tapping delete shows a confirmation: "Delete this message? This cannot be undone."
+- On confirm, the message is hard-deleted from the database
+- The message disappears from all participants' views on the next poll cycle
+- Reactions associated with the deleted message should also be deleted (cascade)
+- In the DM Area live message feed, the DM should also be able to click a message and have a delete option
+
+**API:**
+- `DELETE /api/messages/[messageId]` — deletes a message (DM auth required)
+- Server-side: verify DM auth before allowing deletion. Regular players cannot delete messages (not even their own — keeps the record intact for the DM)
 
 ---
 
-## 1. FIX: Message Text Overflow
+## 2. DM: Delete Any Group
 
-Messages with long unbroken strings (like URLs) overflow outside the message bubble container. Visible in the screenshots where a wikidot URL extends beyond the bubble boundary.
+The DM should be able to delete any group chat at any time.
 
-**Fix:**
-- Add `word-break: break-word` and `overflow-wrap: break-word` to all message bubble containers
-- URLs and other long unbroken text must wrap within the bubble, never overflow
-- Apply to both sender and receiver message bubbles
-- Also apply to the message preview text in the conversation list (left panel) — long messages in the preview should truncate with ellipsis, not overflow
+**Implementation:**
+- In DM mode, each group chat shows a "Delete Group" option accessible via:
+  - A menu/gear icon in the group chat header (when viewing the group)
+  - A long-press or right-click on the group in the Groups list
+  - The DM Area (if group management is surfaced there)
+- Tapping delete shows a confirmation: "Delete group '[Group Name]'? All messages in this group will be permanently deleted."
+- On confirm:
+  - The group's `Conversation` record is deleted
+  - All `MessageV2` records associated with that conversation are deleted
+  - All `MessageReaction` records for those messages are deleted
+  - The `Pinboard` for that conversation is deleted
+  - All `ConversationRead` records for that conversation are deleted
+- All group members see the group disappear from their Groups tab on the next poll cycle
+- If a player currently has the deleted group open, they should be gracefully returned to the conversation list with a brief notice: "This group has been deleted."
 
----
-
-## 2. FIX: Conversation List — Sort by Last Message
-
-The conversation list (Friends tab, Groups tab, and DM's Player Chats tab) should be sorted by **most recent message first**. Conversations with the newest activity appear at the top.
-
-- If a conversation has no messages, it sorts to the bottom
-- When a new message arrives in any conversation, that conversation jumps to the top of the list
-- This should apply to all tabs: My Chats, Player Chats (DM), and Groups
-
----
-
-## 3. FEATURE: Group Chat Deletion — Player Request Flow
-
-Players should be able to **request** that a group chat be deleted, but only the DM can actually delete it.
-
-**Player side:**
-- In a group chat, add a "Request Deletion" option (accessible via a menu/gear icon in the chat header, or a long-press on the group in the Groups list)
-- Tapping it sends a notification/message to the DM: "[Player Name] has requested deletion of group '[Group Name]'"
-- The player sees a confirmation: "Deletion request sent to the DM"
-- The player CANNOT delete the group themselves
-
-**DM side:**
-- DM receives the deletion request as a system notification or in the DM Area live feed
-- DM can then delete the group from their Groups tab or DM Area
-- Alternatively, the DM can ignore the request
-- DM retains the ability to delete any group at any time without a request
+**API:**
+- `DELETE /api/messages/conversations/[conversationId]` — deletes a group and all associated data (DM auth required)
+- Server-side: verify DM auth. Verify the conversation type is "group" (DMs between players should not be deletable — only groups).
 
 ---
 
-## 4. TWEAK: Inline Date/Time and Reaction Button
+## 3. Players: Rename Groups
 
-Currently the timestamp ("2d ago") and the "+" reaction button are on separate lines below the message, taking up extra vertical space.
+Any member of a group chat can rename it.
 
-**Fix:**
-- Place the timestamp and the reaction trigger on the **same line**, right-aligned below the message body
-- Layout: `[timestamp]  [reaction button]` on one line, right-aligned within the bubble
-- The reaction button should be a small emoji icon (e.g., a subtle smiley face 😊 or a "+" inside a circle) rather than just a bare "+" character — make it clearer that tapping it adds a reaction
-- On hover (desktop), the reaction button can become more visible/prominent
-- On mobile, the reaction button should always be visible (no hover state needed)
-- Keep it subtle so it doesn't distract from the message content, but recognizable enough that players understand what it does
+**Implementation:**
+- In the group chat header, the group name should be **tappable/clickable** by any group member
+- Tapping opens an inline edit field (or a small modal) where they can type a new name
+- On submit, the name updates for all members
+- Max length: 50 characters
+- Empty names are not allowed — show validation if they try to submit blank
+- The conversation list updates to reflect the new name on the next poll cycle
 
----
-
-## 5. FIX: Remove "Messages" Header on Mobile Chat View
-
-When on mobile and viewing a specific conversation (after tapping a contact), the large "MESSAGES" page header still shows above the chat window. This wastes valuable screen real estate on mobile.
-
-**Fix:**
-- When a conversation is open on mobile (the chat view is active), **hide the "MESSAGES" page title**
-- The conversation header (back arrow + contact name + pinboard icon) is sufficient for context
-- The "MESSAGES" title should only show on the conversation list view (when no chat is open)
-- This gives more vertical space for the actual message thread on small screens
+**API:**
+- `PUT /api/messages/conversations/[conversationId]` — update group details `{ name }` (requires player to be a member of the group)
+- Server-side: verify the requesting player is a member of the group. DM can also rename any group.
 
 ---
 
-## 6. FIX: Mobile Bottom Sheet — Add Custom Reaction Button
+## 4. Players: Set Group Emoji/Icon
 
-The mobile bottom sheet (shown when tap-holding a message) currently shows the 6 quick-access emojis but is **missing the "+" button** to open the full emoji picker.
+Each group chat can have a custom emoji that serves as its icon in the conversation list and header.
 
-**Fix:**
-- Always show the "+" button at the end of the quick-access emoji row in the bottom sheet
-- The "+" should open the full searchable emoji picker (as specified in the previous doc)
-- If screen width is too tight to show all 6 emojis + the "+", reduce the quick-access emojis (show 4 or 5) but ALWAYS keep the "+" visible
-- The "+" button should be the same size as the emoji buttons and clearly styled (e.g., a circle with a "+" inside, matching the overall theme)
+**Implementation:**
+- In the group chat header, next to the group name, show the group emoji (or a default placeholder like 💬 if none is set)
+- Tapping the emoji opens the emoji picker (same full picker used for reactions — searchable, categorized)
+- Selecting an emoji sets it as the group's icon
+- The emoji displays:
+  - In the Groups tab conversation list (before the group name, replacing the generic group dot/icon)
+  - In the group chat header
+  - In the DM's Player Chats view for groups
+- Any group member can change the emoji at any time
+- DM can also change any group's emoji
 
----
-
-## 7. FIX: Inline Reaction Picker — Responsive Emoji Count
-
-When pressing the "+" reaction button on a message and the inline reaction picker appears, on small screens the picker overflows and the "+" custom emoji button gets cut off.
-
-**Fix:**
-- Dynamically adjust how many quick-access emojis show based on available screen width:
-  - Screen < 360px: show 3 emojis + "+" button
-  - Screen 360-420px: show 4 emojis + "+"
-  - Screen 420-500px: show 5 emojis + "+"
-  - Screen > 500px: show all 6 emojis + "+"
-- The "+" button to open the full emoji picker must ALWAYS be visible — it is never the element that gets cut off
-- Use CSS media queries or a JavaScript-based width check on the container
-- The picker should never cause horizontal scroll or overflow
-
----
-
-## 8. TWEAK: Message Bubble Alignment
-
-Currently all message bubbles appear to be left-aligned regardless of who sent them. Standard chat convention is:
-
-- **Messages from the current user**: right-aligned, with a slightly different background color or border
-- **Messages from others**: left-aligned
-
-**Fix:**
-- Messages sent by the currently logged-in player should be right-aligned (`justify-end` / `ml-auto`)
-- Messages from others should be left-aligned (`justify-start` / `mr-auto`)
-- Both should have a max-width (e.g., 75-80% of the container) so they don't span the full width
-- Optionally, use a slightly different bubble background or border color for sent vs received to reinforce the distinction
-- The sender name label can be hidden on the current user's own messages (they know they sent it) or shown in a more subtle way
-
----
-
-## 9. TWEAK: IC/OOC Buttons — Prevent Browser Chrome Overlap
-
-On mobile, the IC and OOC toggle buttons below the text input are partially cut off by the browser's bottom navigation chrome (visible in the screenshots).
-
-**Fix:**
-- Add `padding-bottom` or `margin-bottom` to the chat input area to account for mobile browser chrome
-- Use `env(safe-area-inset-bottom)` in CSS to dynamically handle the safe area on iOS and Android:
-  ```css
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+**Data Model:**
+- Add an `emoji` field to the `Conversation` model:
+  ```prisma
+  model Conversation {
+    // ... existing fields
+    emoji String? // custom emoji icon for the group, null = use default
+  }
   ```
-- Alternatively, move the IC/OOC toggles to be inline with the text input and send button (to the left of the text input, or as small toggle chips inside the input bar) rather than on a separate row below — this saves vertical space AND avoids the chrome overlap issue
-- Test on iOS Safari and Android Chrome to confirm nothing is cut off
+
+**API:**
+- Same `PUT /api/messages/conversations/[conversationId]` endpoint — extend it to accept `{ name?, emoji? }`
+- Either field can be updated independently
 
 ---
 
-## 10. TWEAK: Send Button Alignment (Revisited)
+## 5. Group Settings Panel
 
-The send button is still slightly misaligned vertically with the text input field (visible in screenshots).
+To house the rename and emoji options (plus future settings), add a **Group Settings** view accessible from the group chat header.
 
-**Fix:**
-- Ensure the chat input container uses `display: flex; align-items: center;` (Tailwind: `flex items-center`)
-- The text input and send button should share the same height, or the send button should be vertically centered relative to the input
-- If the IC/OOC toggles remain below the input, they should not affect the vertical alignment of the input + send button row
-- Test on both mobile and desktop to confirm alignment
+**Access:**
+- In the group chat header, add a small gear/settings icon (⚙️) or make the group name + emoji area tappable
+- Opens a panel or modal with:
+
+**Contents:**
+- **Group Name**: Editable text field (current name pre-filled). Save button.
+- **Group Emoji**: Current emoji displayed. Tap to open emoji picker and change.
+- **Members**: List of all members with player colors. Shows who created the group.
+- **Request Deletion**: Button for players to request the DM delete the group (from the previous doc).
+- **Delete Group** (DM only): Visible only to DM. Immediately deletes the group with confirmation.
+
+**Mobile:**
+- Opens as a full-screen slide-in panel (similar to how the chat slides in from the conversation list)
+- Back button returns to the group chat
+
+**Desktop/Tablet:**
+- Opens as a modal or a slide-out panel on the right (where the pinboard lives — could be a tab next to pinboard)
 
 ---
 
-## 11. TWEAK: Conversation List — Visual Separation of DMs vs Groups
+## 6. FIX: Group Deletion Request — Add Confirmation
 
-In the DM's "My Chats" tab (screenshot 3), direct message conversations and group chats appear in the same list without clear visual distinction.
+When a player taps "Request Deletion" for a group chat, they should see a confirmation dialog before the request is sent.
 
-**Fix:**
-- Direct messages show the player's colored dot + name (as they do now)
-- Group chats should have a visually distinct indicator — a small group icon (e.g., 👥) before the group name, or a different shaped indicator (square instead of circle dot)
-- This makes it easy to scan the list and distinguish DMs from groups at a glance
+**Flow:**
+- Player taps "Request Deletion"
+- A confirmation modal appears: "Are you sure you want to request deletion of '[Group Name]'? The DM will be notified."
+- Two buttons: "Cancel" and "Request Deletion"
+- Only on confirm does the request get sent to the DM
+- After confirming, the player sees: "Deletion request sent to the DM"
 
 ---
 
-## 12. TWEAK: Reaction Picker — Better Trigger Button
+## 7. TWEAK: Reaction Button — Greyscale Animated Emoji
 
-The current "+" button for adding reactions is not self-explanatory. New users might not understand it's for reactions.
+The "+" or smiley reaction button on each message should be replaced with a more dynamic, inviting design.
+
+**Implementation:**
+- The reaction trigger button displays a **greyscale emoji** that slowly **fades/cycles** between 4-6 different emojis
+- The emojis it cycles through should be the current user's **most-used reactions** (pulled from the same emoji stats used for the quick-access row). If the player doesn't have enough usage data yet, fall back to the defaults: 👍 😂 ❤️ 🔥
+- The cycle should be slow and subtle — fade transition every 3-4 seconds, not distracting
+- The emoji is rendered in **greyscale/desaturated** (CSS `filter: grayscale(100%) opacity(0.5)`) so it doesn't compete with actual reactions on the message
+- On hover (desktop), the emoji becomes full color and slightly larger as a hint that it's interactive
+- On tap, it opens the reaction picker as usual
+- This replaces the bare "+" character and the static smiley — the cycling animation makes it clear this button is for reactions without needing a tooltip
+
+---
+
+## 8. FIX: Mobile Bottom Sheet — X Button Overlap
+
+On mobile, when the message detail bottom sheet slides up, the "×" close button in the top-right corner overlaps slightly with the message preview box.
 
 **Fix:**
-- Replace the bare "+" with a small, recognizable reaction icon. Options:
-  - A small smiley face outline (😊) that's slightly faded/muted — universally recognized as "add reaction"
-  - A smiley face with a small "+" overlay in the corner
-- On hover (desktop), show a tooltip: "Add reaction"
-- On first use (or first visit), optionally show a brief tooltip/hint that this is for reactions — then dismiss permanently after the player uses it once
+- Add more spacing/margin between the "×" button and the message preview container
+- The "×" should sit clearly outside the message preview box, in the top-right corner of the bottom sheet itself (not inside the message area)
+- Ensure the "×" has adequate tap target size (minimum 44x44px) and doesn't overlap with any content
+- The "×" should have a small amount of padding from the right edge of the sheet (e.g., 12-16px from both top and right edges)
+
+---
+
+## 9. FEATURE: Player Color Customization
+
+Allow players to change their assigned color from the settings/profile area. This color is used across the ENTIRE site — messages, reactions, player chips, initiative tracker, seating chart, conversation list, etc.
+
+**Implementation:**
+
+### Settings UI
+- In the player settings area (gear icon in nav, or `/settings` page), add a **"Your Color"** section
+- Shows the player's current color as a colored circle/swatch
+- Tapping it opens a **color picker**:
+  - A grid of preset color options (12-16 curated colors that look good on the dark theme) — these should all be vibrant and distinguishable from each other
+  - Optionally: a custom hex input field for players who want a specific color
+  - A live preview showing what their name/messages will look like with the new color
+- "Save" button applies the change
+
+### Data Model
+- Add a `color` field to the `Player` model:
+  ```prisma
+  model Player {
+    // ... existing fields
+    color String? // custom hex color, null = use default from config
+  }
+  ```
+- The default colors from `lib/players.ts` serve as fallbacks when `color` is null
+
+### Site-Wide Integration (CRITICAL)
+- **Everywhere** the player's color is currently referenced from the static `PLAYERS` config in `lib/players.ts`, it must now check the database `Player.color` field first, falling back to the static default if null
+- Create a utility function or hook, e.g., `getPlayerColor(playerName)`, that:
+  1. Checks if the player has a custom color in the database
+  2. Falls back to the default from the static config
+  3. Is used consistently across the entire codebase
+- This affects: message bubbles, sender name labels, conversation list entries, player chips, initiative tracker entries, seating chart cards, reaction tooltips (who reacted), read receipt names, group member lists, nav bar "Logged in as" indicator, and any other place a player's color appears
+- **Cache the player colors** on the client (e.g., in React context or a lightweight global store) to avoid fetching from the API on every render. Refresh the cache on page load or when the player changes their color.
+
+### API
+- `PUT /api/auth/update-color` — `{ playerName, color }` (player can only update their own; DM can update anyone's)
+- `GET /api/players` — returns all players with their current colors (for the client-side cache)
+
+### Constraints
+- Colors must be valid hex codes (validate on both client and server)
+- Warn the player if they pick a color that's too close to the background (#0d1117) or to another player's current color — "This color may be hard to see" or "This color is very similar to [Player]'s color"
+- DM can reset any player's color back to the default from the DM Area or settings
+
+---
+
+## 10. TWEAK: Homepage Navigation Card Order
+
+Reorder the tool cards on the homepage to match priority of use:
+
+1. **Messages** (most used)
+2. **Initiative Tracker**
+3. **Games**
+4. **Seating Chart**
+5. **DM Area** (only visible when DM is authenticated — hidden for regular players)
+
+Update the `tools` array in the homepage component to reflect this order. The DM Area card should only render if the user is authenticated as DM.
