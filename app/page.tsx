@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { usePlayer } from "@/lib/player-context";
 
 const TAGLINES = [
   "An adventure that involves the Underdark... a whole lot of dark.",
@@ -40,6 +41,7 @@ const tools = [
 ];
 
 export default function Home() {
+  const { isDM } = usePlayer();
   const [taglineIndex, setTaglineIndex] = useState(0);
   const [fade, setFade] = useState(true);
 
@@ -93,6 +95,23 @@ export default function Home() {
             <p className="mt-2 text-sm text-gray-400">{tool.tagline}</p>
           </Link>
         ))}
+        {isDM && (
+          <Link
+            href="/dm"
+            className="card-glow animate-fade-in-up group rounded-lg border border-border bg-surface p-6 text-center transition-all"
+            style={{ animationDelay: `${300 + tools.length * 100}ms` }}
+          >
+            <div className="mb-3 text-4xl transition-transform group-hover:scale-110">
+              🛡️
+            </div>
+            <h2 className="font-cinzel text-lg font-bold text-gold">
+              DM Area
+            </h2>
+            <p className="mt-2 text-sm text-gray-400">
+              Your command center
+            </p>
+          </Link>
+        )}
       </div>
     </div>
   );

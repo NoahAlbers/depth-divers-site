@@ -36,5 +36,13 @@ model InitiativeState {
   id        String   @id @default("singleton")
   round     Int      @default(1)
   isActive  Boolean  @default(false)
+  phase     String   @default("idle") // "idle", "entry", "locked"
   updatedAt DateTime @updatedAt
+}
+
+model SeatingLock {
+  id       String   @id @default("active")
+  seats    String   // JSON array of 6 player names in seat order
+  lockedBy String
+  lockedAt DateTime @default(now())
 }

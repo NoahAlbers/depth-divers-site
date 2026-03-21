@@ -12,7 +12,7 @@ export async function GET() {
 
   return NextResponse.json({
     entries,
-    state: state ?? { round: 1, isActive: false, updatedAt: new Date() },
+    state: state ?? { round: 1, isActive: false, phase: "idle", updatedAt: new Date() },
     lastUpdated: new Date().toISOString(),
   });
 }

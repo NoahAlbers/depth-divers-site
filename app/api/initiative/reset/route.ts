@@ -11,8 +11,8 @@ export async function POST(request: Request) {
     prisma.initiative.deleteMany(),
     prisma.initiativeState.upsert({
       where: { id: "singleton" },
-      update: { round: 1, isActive: false },
-      create: { id: "singleton", round: 1, isActive: false },
+      update: { round: 1, isActive: false, phase: "idle" },
+      create: { id: "singleton", round: 1, isActive: false, phase: "idle" },
     }),
   ]);
 

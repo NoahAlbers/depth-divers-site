@@ -4,7 +4,8 @@
       "Bash(npx:*)",
       "Bash(cp:*)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(ls:*)"
     ]
   }
 }
