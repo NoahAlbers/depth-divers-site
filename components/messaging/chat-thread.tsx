@@ -260,7 +260,7 @@ export function ChatThread({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3" style={{ overscrollBehavior: "none", WebkitOverflowScrolling: "touch" }}>
+      <div ref={scrollRef} className="chat-messages min-h-0 flex-1 overflow-y-auto px-4 py-3" style={{ overscrollBehavior: "contain" }}>
         {messages.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-500">
             No messages yet. Say something!

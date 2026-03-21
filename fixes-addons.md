@@ -1,211 +1,127 @@
-# Bug Fixes & Tweaks: Pre-Phase 3 Polish
+# URGENT FIX: Mobile Chat Layout Broken
 
 **Repo**: https://github.com/NoahAlbers/depth-divers-site
 
----
+## Problem
 
-## 1. TWEAK: Navbar Link Order
+The previous mobile keyboard viewport fix has broken the chat layout:
 
-Reorder the navigation links in the navbar (both the desktop inline links and the mobile hamburger menu) to match usage priority:
+1. **Empty space**: Without touching the textbox, there is a large amount of empty/dead space to the right and below the messaging area. The chat container is not filling the full viewport width or height.
+2. **Scroll on focus**: When tapping the text input, the viewport scrolls all the way down to empty space — the user sees nothing but blank dark background with the keyboard open.
+3. **Jump on typing**: When the user starts typing, the view jumps back up but the chat area is now smaller/squished.
 
-1. Messages
-2. Initiative
-3. Games
-4. Seating
-5. DM Area (only visible when DM is authenticated)
+## Root Cause (Likely)
 
----
+The `position: fixed` approach from the previous fix was applied incorrectly — possibly:
+- The fixed container doesn't have `width: 100%` or `left: 0; right: 0`
+- The height is being calculated wrong (using a JS variable that's not set correctly, or `100vh` which lies on mobile)
+- The fixed layout is being applied globally instead of only when a conversation is open on mobile
+- Multiple competing height/position strategies are conflicting with each other
 
-## 2. TWEAK: Mobile Hamburger Menu — Smooth Slide Animation
+## Fix: Start Clean
 
-The mobile hamburger menu tray should slide in and out smoothly rather than appearing/disappearing instantly.
+**Step 1: Remove all the previous keyboard fix attempts.** Strip out any:
+- `position: fixed` on the chat page container
+- Custom `--viewport-height` CSS variables and the JS that sets them
+- The `visualViewport` resize listener
+- The opacity animation keyframe hack
+- Any `overscroll-behavior` changes
+- Any `navigator.virtualKeyboard` API calls
 
-**Implementation:**
-- The menu tray should slide in from the right (or top) with a smooth CSS transition (300ms ease or similar)
-- Use `transform: translateX(100%)` → `translateX(0)` for a right-side slide, or `translateY(-100%)` → `translateY(0)` for top-down
-- Add a semi-transparent backdrop overlay behind the menu that fades in simultaneously
-- Closing the menu (tapping the X, tapping the backdrop, or tapping a link) should reverse the animation smoothly before removing the tray from the DOM
-- Avoid any "jump" or instant appearance — the transition should feel native and app-like
-- Example Tailwind approach: use `transition-transform duration-300 ease-in-out` on the tray container
+Get the chat page back to a working state first, even if the keyboard scroll issue returns temporarily.
 
----
+**Step 2: Rebuild the chat layout properly.**
 
-## 3. FEATURE: Link Previews & Embeds in Messages
+The messages page when a conversation is open should use this structure:
 
-When a player sends a message containing a URL, the message should render a **link preview** below the message text.
-
-**Implementation:**
-
-### Detecting Links
-- When a message is sent, scan the body for URLs (regex for http/https links)
-- URLs in the message text should be rendered as clickable, tappable links (styled with an underline and the player's color or a neutral accent color)
-- Links should open in a new tab (`target="_blank" rel="noopener noreferrer"`)
-
-### Link Preview Cards
-- Below the message text, render a small **preview card** for the first URL found in the message
-- The preview card shows (when available):
-  - **Title**: The page's `<title>` or `og:title`
-  - **Description**: The page's `meta description` or `og:description` (truncated to ~120 chars)
-  - **Image**: The page's `og:image` (rendered as a small thumbnail)
-  - **Domain**: The hostname of the URL (e.g., "dnd5e.wikidot.com")
-- The preview card is styled as a compact, bordered box below the message — similar to how Discord, Slack, or iMessage render link previews
-- Tapping the preview card opens the URL in a new tab
-
-### Fetching Metadata
-- **Server-side**: Create an API route `GET /api/link-preview?url=[encoded_url]` that:
-  1. Fetches the URL's HTML (server-side, not client-side, to avoid CORS issues)
-  2. Parses the `<head>` for `og:title`, `og:description`, `og:image`, and fallback to `<title>` and `meta description`
-  3. Returns the metadata as JSON
-  4. **Cache results** in the database or in-memory to avoid re-fetching the same URL repeatedly
-- **Client-side**: When rendering a message with a URL, call the link preview API and display the card. Show a small loading skeleton while fetching.
-- **Rate limiting**: Only fetch previews for the first URL in a message. Don't fetch for messages older than 30 days (to avoid unnecessary API calls on scroll-back).
-- **Fallback**: If metadata can't be fetched (site blocks it, times out, etc.), just show the raw clickable URL — no preview card.
-
-### Data Model (Optional Cache)
-```prisma
-model LinkPreview {
-  id          String   @id @default(cuid())
-  url         String   @unique
-  title       String?
-  description String?
-  imageUrl    String?
-  domain      String
-  fetchedAt   DateTime @default(now())
-}
+```
+┌──────────────────────────┐ ← top of screen
+│ Chat Header (back + name)│ ← fixed height, flex-shrink: 0
+├──────────────────────────┤
+│                          │
+│   Message Thread         │ ← flex: 1, overflow-y: auto
+│   (scrollable)           │
+│                          │
+├──────────────────────────┤
+│ Input bar + IC/OOC       │ ← fixed height, flex-shrink: 0
+└──────────────────────────┘ ← bottom of screen (or keyboard)
 ```
 
-### Security
-- The server-side fetcher should have a timeout (5 seconds max) and a maximum response size (1MB) to prevent abuse
-- Only fetch from http/https URLs — reject anything else
-- Sanitize all metadata before rendering (prevent XSS from malicious og:title etc.)
-- Don't fetch from internal/private IP ranges
-
----
-
-## 4. FIX: Mobile Keyboard Viewport Scroll (CRITICAL)
-
-On mobile, when the player taps the message input to type, the browser's virtual keyboard opens and shifts/scrolls the entire viewport upward. This breaks the chat app experience — the header scrolls off screen, the layout jumps around, and it doesn't feel like a proper messaging app.
-
-**The goal**: When the keyboard opens, the chat input stays pinned above the keyboard, the message thread shrinks to fit the remaining space, and NOTHING ELSE moves. The header/nav stays put. No page-level scrolling.
-
-### Approach: Multi-Strategy Solution
-
-This is a notoriously tricky cross-browser problem. Use a combination of the following techniques:
-
-#### Strategy 1: VirtualKeyboard API (Chrome Android 94+)
-For browsers that support it, opt into the VirtualKeyboard API which gives full control:
-
-```javascript
-if ('virtualKeyboard' in navigator) {
-  navigator.virtualKeyboard.overlaysContent = true;
-}
-```
-
-Then use CSS environment variables to reserve space for the keyboard:
-
-```css
-.chat-container {
-  height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr auto env(keyboard-inset-height, 0px);
-}
-```
-
-This tells the browser: "Don't resize the viewport — let the keyboard overlay the content, and I'll handle the layout myself."
-
-#### Strategy 2: CSS Fixed Layout with Safe Area Insets (iOS Safari + Android fallback)
-Structure the chat page as a fixed full-screen layout that doesn't rely on viewport height:
+The key CSS for the chat page container (when a conversation is open on mobile):
 
 ```css
 .chat-page {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   display: flex;
   flex-direction: column;
+  height: 100dvh;       /* dynamic viewport height — accounts for browser chrome */
+  height: 100vh;        /* fallback for browsers that don't support dvh */
+  width: 100%;
+  overflow: hidden;     /* the PAGE doesn't scroll — only the message list does */
+}
+
+.chat-header {
+  flex-shrink: 0;
 }
 
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; /* prevents pull-to-refresh interference */
+  min-height: 0;        /* CRITICAL: allows flex child to shrink below content height */
 }
 
-.chat-input-bar {
+.chat-input-area {
   flex-shrink: 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px); /* iPhone notch/home bar */
 }
 ```
 
-Using `position: fixed` with `inset: 0` on the chat page container makes it independent of the document scroll. The message list is the only scrollable area.
+**Important**: Use `height: 100dvh` (dynamic viewport height) as the primary value. This is the modern solution that correctly accounts for mobile browser chrome (address bar, bottom bar). Put `height: 100vh` as a fallback BEFORE the `100dvh` line for browsers that don't support `dvh` yet.
 
-#### Strategy 3: Prevent Scroll on Focus (iOS Safari specific)
-iOS Safari infamously scrolls the page when focusing an input. Use the opacity animation workaround that has been widely confirmed to work:
+**Do NOT use `position: fixed`** on the chat container. Instead, make the chat page the ONLY content on the screen when a conversation is open (no page-level scrollable content outside it). The flex layout with `overflow: hidden` on the container and `overflow-y: auto` on the message list achieves the same result without the complexity and bugs of fixed positioning.
 
-```css
-@keyframes prevent-scroll-on-focus {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
+**Step 3: Handle the keyboard — minimal approach.**
 
-.chat-input:focus {
-  animation: prevent-scroll-on-focus 0.01s;
-}
-```
-
-Additionally, on focus, immediately scroll the message thread to the bottom and prevent any document-level scrolling:
+Instead of the complex multi-strategy approach from before, use a single lightweight solution:
 
 ```javascript
-inputElement.addEventListener('focus', () => {
-  // Prevent the page from scrolling
-  window.scrollTo(0, 0);
-  // Scroll the message list to the bottom
-  messageContainer.scrollTop = messageContainer.scrollHeight;
-});
-```
-
-#### Strategy 4: Dynamic Height Calculation with VisualViewport API
-Listen for visual viewport changes (which fire when the keyboard opens/closes) and adjust the chat container height:
-
-```javascript
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => {
-    const viewportHeight = window.visualViewport.height;
-    document.documentElement.style.setProperty(
-      '--viewport-height', 
-      `${viewportHeight}px`
-    );
+// Only on mobile
+if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+  const chatInput = document.querySelector('.chat-input');
+  const messageList = document.querySelector('.chat-messages');
+  
+  chatInput?.addEventListener('focus', () => {
+    // Small delay to let the keyboard finish opening
+    setTimeout(() => {
+      // Scroll message list to bottom so newest messages are visible
+      messageList.scrollTop = messageList.scrollHeight;
+      // Prevent any page-level scroll that the browser might have done
+      window.scrollTo(0, 0);
+    }, 300);
   });
 }
 ```
 
-```css
-.chat-page {
-  height: var(--viewport-height, 100vh);
-  height: var(--viewport-height, 100dvh);
-}
-```
+That's it. The flex layout handles the resizing (the browser shrinks the viewport when the keyboard opens, the flex container adjusts, the message list shrinks, the input stays at the bottom). The focus handler just ensures the messages stay scrolled to the bottom and the page doesn't jump.
 
-#### Combining the Strategies
-- Use feature detection to apply the best strategy per browser
-- VirtualKeyboard API is the cleanest solution — use it where available (Chrome Android)
-- Fixed layout + VisualViewport is the fallback for iOS Safari and older browsers
-- The opacity animation hack is a belt-and-suspenders safety net for iOS Safari scroll prevention
-- Test on: iOS Safari, Android Chrome, and Android Samsung Browser
+**Step 4: Test the following scenarios on a real mobile device (or emulator):**
+1. Open a conversation — chat should fill the full screen width and height. No dead space.
+2. Tap the text input — keyboard opens, chat area shrinks, input stays visible above keyboard, messages remain visible. No viewport jump.
+3. Type a message and send — everything stays in place.
+4. Dismiss the keyboard — chat area expands back to full height smoothly.
+5. Scroll through messages — only the message list scrolls, header and input stay fixed in place.
+6. Rotate device — layout adjusts correctly.
+7. Open/close the pinboard — doesn't break the layout.
 
-#### Important Implementation Notes
-- The chat page (`/messages`) should use `position: fixed` for its entire layout — it should NOT be part of the normal document flow when a conversation is open
-- The message list should be the ONLY scrollable element (using `overflow-y: auto`)
-- Avoid `100vh` — it lies on mobile. Use `100dvh` (dynamic viewport height) with a fallback to the VisualViewport API calculation
-- The page-level "MESSAGES" header should already be hidden when in a chat (per previous doc) — this helps because there's less content that could potentially scroll
-- Add `overscroll-behavior: none` to the chat container to prevent pull-to-refresh and rubber-banding from interfering
+## Summary
 
-### References for Claude Code
-These resources contain working solutions and code samples:
-- MDN VirtualKeyboard API: https://developer.mozilla.org/en-US/docs/Web/API/VirtualKeyboard_API
-- iOS Safari opacity workaround (confirmed working): https://gist.github.com/kiding/72721a0553fa93198ae2bb6eefaa3299
-- Ionic framework's scroll assist implementation: https://github.com/ionic-team/ionic-framework/blob/main/core/src/utils/input-shims/hacks/scroll-assist.ts
-- WHATWG issue with context on the problem: https://github.com/whatwg/html/issues/8375
-- Telegram's approach to fixing Safari viewport: https://medium.com/@krutilin.sergey.ks/fixing-the-safari-mobile-resizing-bug-a-developers-guide-6568f933cde0
+The previous fix was over-engineered and introduced layout bugs. The correct approach is:
+1. **Flex layout** with `height: 100dvh` on the container and `overflow: hidden`
+2. **Only the message list scrolls** (`overflow-y: auto` with `min-height: 0`)
+3. **Minimal JS** — just scroll messages to bottom on input focus and reset page scroll
+4. **No `position: fixed`** on the chat container
+5. **No custom viewport height calculations** — let `100dvh` and the browser handle it
+6. **`env(safe-area-inset-bottom)`** on the input area for iPhone home bar
+
+Keep it simple. The flex layout does the heavy lifting.

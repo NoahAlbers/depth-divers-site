@@ -9,7 +9,6 @@ import { ConversationList } from "@/components/messaging/conversation-list";
 import { ChatThread } from "@/components/messaging/chat-thread";
 import { ChatInput } from "@/components/messaging/chat-input";
 import { PinboardPanel } from "@/components/messaging/pinboard-panel";
-import { useViewportHeight } from "@/lib/use-viewport-height";
 
 function getConversationDisplayName(
   convo: { type: string; name: string | null; members: string[] },
@@ -70,7 +69,6 @@ export default function MessagesPage() {
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
 
   const playerName = effectivePlayer;
-  useViewportHeight();
 
   // Handle URL params for deep-linking from DM feed
   useEffect(() => {
@@ -252,7 +250,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(var(--viewport-height, 100dvh) - 80px)", overscrollBehavior: "none" }}>
+    <div className="flex w-full flex-col overflow-hidden" style={{ height: "100dvh", maxHeight: "calc(100vh - 60px)" }}>
       {mobileView === "list" && (
         <h1 className="mb-2 px-0 font-cinzel text-3xl font-bold text-gold md:mb-0 md:hidden">
           Messages

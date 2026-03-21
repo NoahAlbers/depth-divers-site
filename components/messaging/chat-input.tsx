@@ -40,12 +40,19 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => {
-              window.scrollTo(0, 0);
+              setTimeout(() => {
+                window.scrollTo(0, 0);
+                // Scroll the message list to bottom
+                document.querySelector(".chat-messages")?.scrollTo({
+                  top: 999999,
+                  behavior: "instant",
+                });
+              }, 300);
             }}
             placeholder="Type a message..."
             disabled={disabled}
             rows={1}
-            className="chat-input-field max-h-[100px] min-h-[44px] w-full resize-none rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-gold focus:outline-none disabled:opacity-50"
+            className="max-h-[100px] min-h-[44px] w-full resize-none rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-gold focus:outline-none disabled:opacity-50"
           />
           <div className="flex items-center gap-2">
             <button
