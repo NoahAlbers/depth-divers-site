@@ -9,8 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@emoji-mart/data": "^1.2.1",
-    "@emoji-mart/react": "^1.1.1",
     "@prisma/client": "^6.19.2",
     "bcryptjs": "^3.0.3",
     "next": "16.1.7",

@@ -11,7 +11,8 @@
       "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/conversations/[id]/pinboard\")",
       "Bash(polling)",
       "Bash(dm-auth \")",
-      "Bash(find /c/Users/alber/Desktop/depth-divers-site/lib -type f -name *.ts)"
+      "Bash(find /c/Users/alber/Desktop/depth-divers-site/lib -type f -name *.ts)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }
