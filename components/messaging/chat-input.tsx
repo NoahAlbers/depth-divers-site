@@ -31,7 +31,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-border bg-surface p-3">
+    <div className="border-t border-border bg-surface p-3" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
       <div className="flex items-center gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <textarea

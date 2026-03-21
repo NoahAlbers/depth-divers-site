@@ -28,6 +28,9 @@ interface ChatThreadProps {
   conversationMembers?: string[];
   onReact?: (messageId: string, emoji: string) => void;
   onRemoveReaction?: (messageId: string, emoji: string) => void;
+  onRequestGroupDeletion?: () => void;
+  isGroupChat?: boolean;
+  isDM?: boolean;
   highlightMessageId?: string | null;
   onBack?: () => void;
   onTogglePinboard?: () => void;
@@ -51,6 +54,9 @@ export function ChatThread({
   conversationMembers = [],
   onReact,
   onRemoveReaction,
+  onRequestGroupDeletion,
+  isGroupChat,
+  isDM: isDMProp,
   highlightMessageId,
   currentPlayer,
   conversationName,
@@ -122,6 +128,15 @@ export function ChatThread({
           <h2 className="flex-1 font-cinzel text-lg font-bold text-gold">
             {conversationName}
           </h2>
+          {isGroupChat && !isDMProp && onRequestGroupDeletion && (
+            <button
+              onClick={onRequestGroupDeletion}
+              className="min-h-[44px] rounded px-2 text-[10px] text-red-400/60 transition-colors hover:text-red-400"
+              title="Request group deletion"
+            >
+              🗑️
+            </button>
+          )}
           {onTogglePinboard && (
             <button
               onClick={onTogglePinboard}
@@ -269,7 +284,7 @@ export function ChatThread({
 
                     {/* Body */}
                     <p
-                      className={`whitespace-pre-wrap text-sm ${
+                      className={`whitespace-pre-wrap break-words text-sm ${
                         msg.tag === "IC"
                           ? "font-cinzel text-gray-200"
                           : "text-gray-300"
@@ -351,22 +366,20 @@ export function ChatThread({
                         }
                       })()}
                       <span>{relativeTime(msg.createdAt)}</span>
-                    </div>
-                    {/* React button */}
-                    {onReact && (
-                      <div className="mt-0.5 flex justify-end">
+                      {onReact && (
                         <button
                           onClick={() =>
                             setPickerMessageId(
                               pickerMessageId === msg.id ? null : msg.id
                             )
                           }
-                          className="rounded px-1 py-0.5 text-[10px] text-gray-600 transition-colors hover:bg-surface-light hover:text-gray-400"
+                          className="ml-1 rounded px-1 py-0.5 text-xs text-gray-600 opacity-60 transition-all hover:opacity-100 hover:bg-surface-light"
+                          title="Add reaction"
                         >
-                          +
+                          😊
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     {/* Reaction picker */}
                     {pickerMessageId === msg.id && onReact && (

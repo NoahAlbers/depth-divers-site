@@ -38,7 +38,7 @@ export function ReactionPicker({
 
   return (
     <div className="flex max-w-full items-center gap-1 overflow-hidden rounded-lg border border-border bg-surface p-1 shadow-lg">
-      {/* Responsive: show 4 on tiny, 5 on small, 6 on normal */}
+      {/* Responsive: <360px=3, 360-420=4, 420-500=5, 500+=6 */}
       {quickEmojis.map((emoji, i) => (
         <button
           key={emoji}
@@ -47,9 +47,11 @@ export function ReactionPicker({
             onClose();
           }}
           className={`min-h-[36px] min-w-[36px] flex-shrink-0 rounded text-lg transition-transform hover:scale-125 hover:bg-surface-light active:scale-95 ${
-            i >= 5 ? "hidden min-[480px]:inline-flex" : ""
+            i >= 5 ? "hidden min-[500px]:inline-flex" : ""
           } ${
-            i >= 4 ? "hidden min-[360px]:inline-flex" : ""
+            i >= 4 ? "hidden min-[420px]:inline-flex" : ""
+          } ${
+            i >= 3 ? "hidden min-[360px]:inline-flex" : ""
           }`}
         >
           {emoji}

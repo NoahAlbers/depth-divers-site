@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { getPlayerColor } from "@/lib/players";
 import { ReactionPicker } from "./reaction-picker";
+import { FullEmojiPicker } from "./full-emoji-picker";
 
 interface Reaction {
   playerName: string;
@@ -53,6 +54,7 @@ export function MessageDetailSheet({
   onClose,
 }: MessageDetailSheetProps) {
   const [dragY, setDragY] = useState(0);
+  const [showFullPicker, setShowFullPicker] = useState(false);
   const [dragging, setDragging] = useState(false);
   const startYRef = useRef(0);
 
@@ -204,14 +206,33 @@ export function MessageDetailSheet({
           {/* Add reaction */}
           <div className="mb-2">
             <p className="mb-1 text-xs font-bold text-gray-400">Add Reaction</p>
-            <ReactionPicker
-              playerName={currentPlayer}
-              onSelect={(emoji) => {
-                onReact(message.id, emoji);
-                onClose();
-              }}
-              onClose={onClose}
-            />
+            {showFullPicker ? (
+              <>
+                <button
+                  onClick={() => setShowFullPicker(false)}
+                  className="mb-2 text-xs text-gray-500 hover:text-gray-300"
+                >
+                  ← Back
+                </button>
+                <FullEmojiPicker
+                  onSelect={(emoji) => {
+                    onReact(message.id, emoji);
+                    onClose();
+                  }}
+                  onClose={() => setShowFullPicker(false)}
+                />
+              </>
+            ) : (
+              <ReactionPicker
+                playerName={currentPlayer}
+                onSelect={(emoji) => {
+                  onReact(message.id, emoji);
+                  onClose();
+                }}
+                onClose={onClose}
+                onOpenFullPicker={() => setShowFullPicker(true)}
+              />
+            )}
           </div>
         </div>
       </div>

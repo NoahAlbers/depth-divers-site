@@ -156,6 +156,22 @@ export default function MessagesPage() {
     fetchMessages();
   };
 
+  const handleRequestGroupDeletion = async () => {
+    if (!selectedId || !playerName || !selectedConvo) return;
+    const groupName = selectedConvo.name || "this group";
+    await fetch(`/api/conversations/${selectedId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: playerName,
+        body: `⚠️ ${playerName} has requested deletion of group "${groupName}"`,
+        tag: null,
+      }),
+    });
+    fetchMessages();
+    refetchConvos();
+  };
+
   const handleSend = async (body: string, tag: "IC" | "OOC" | null) => {
     if (!selectedId || !playerName) return;
 
@@ -199,9 +215,11 @@ export default function MessagesPage() {
 
   return (
     <div className="flex h-[calc(100vh-80px)] flex-col">
-      <h1 className="mb-2 px-0 font-cinzel text-3xl font-bold text-gold md:mb-0 md:hidden">
-        Messages
-      </h1>
+      {mobileView === "list" && (
+        <h1 className="mb-2 px-0 font-cinzel text-3xl font-bold text-gold md:mb-0 md:hidden">
+          Messages
+        </h1>
+      )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
         {/* Left panel - conversation list */}
@@ -236,6 +254,9 @@ export default function MessagesPage() {
                 conversationMembers={convoMembers}
                 onReact={handleReact}
                 onRemoveReaction={handleRemoveReaction}
+                onRequestGroupDeletion={handleRequestGroupDeletion}
+                isGroupChat={selectedConvo?.type === "group"}
+                isDM={effectiveIsDM}
                 highlightMessageId={highlightMessageId}
                 onBack={handleBack}
                 onTogglePinboard={() => {

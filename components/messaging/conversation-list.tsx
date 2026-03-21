@@ -62,10 +62,14 @@ function ConvoRow({
           : "hover:bg-surface-light border-l-2 border-transparent"
       }`}
     >
-      <div
-        className="h-3 w-3 flex-shrink-0 rounded-full"
-        style={{ backgroundColor: color }}
-      />
+      {convo.type === "group" ? (
+        <span className="flex-shrink-0 text-sm">👥</span>
+      ) : (
+        <div
+          className="h-3 w-3 flex-shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between">
           <span className="truncate text-sm font-bold" style={{ color }}>
@@ -154,11 +158,20 @@ export function ConversationList({
     return other ? getPlayerColor(other) : "#888";
   }
 
-  // For the Friends tab (non-DM): show all characters except self
+  // For the Friends tab (non-DM): show all characters except self, sorted by last message
   function renderFriendsTab() {
     const others = ALL_CHARACTERS.filter((c) => c.name !== currentPlayer);
 
-    return others.map((char) => {
+    // Sort by last message time
+    const sorted = [...others].sort((a, b) => {
+      const convoA = dmConvos.find((c) => c.members.includes(a.name));
+      const convoB = dmConvos.find((c) => c.members.includes(b.name));
+      const timeA = convoA?.lastMessage ? new Date(convoA.lastMessage.createdAt).getTime() : 0;
+      const timeB = convoB?.lastMessage ? new Date(convoB.lastMessage.createdAt).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    return sorted.map((char) => {
       // Find the DM conversation for this pair
       const convo = dmConvos.find((c) => c.members.includes(char.name));
       const isSelected = convo ? selectedId === convo.id : false;
@@ -194,7 +207,7 @@ export function ConversationList({
     });
   }
 
-  // Render conversation rows for a list of convos
+  // Render conversation rows for a list of convos, sorted by last message
   function renderConvoList(convos: ConversationItem[]) {
     if (convos.length === 0) {
       return (
@@ -204,7 +217,13 @@ export function ConversationList({
       );
     }
 
-    return convos.map((convo) => {
+    const sorted = [...convos].sort((a, b) => {
+      const aTime = a.lastMessage ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const bTime = b.lastMessage ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    return sorted.map((convo) => {
       const displayName =
         convo.type === "group"
           ? convo.name || "Group Chat"

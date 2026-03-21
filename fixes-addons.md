@@ -1,182 +1,166 @@
-# Bug Fixes & Addons: Messaging Refinements
+# Bug Fixes & Addons: Messaging Polish Pass
 
 **Repo**: https://github.com/NoahAlbers/depth-divers-site
 
----
-
-## 1. Message Detail — Desktop Hover
-
-On desktop, **long-hovering** (~0.5s) on any message should display a **tooltip/popover** with full message details:
-
-- **Exact date and time sent**: e.g., "March 21, 2026 at 3:45:12 PM" (user's local timezone)
-- **Read receipts**: List of who has read it and when, e.g.:
-  - "Read by Mykolov — 3:46 PM"
-  - "Read by Eric — 3:52 PM"
-  - "Not yet read by: Brent, Justin"
-  - Each name in their player color
-- **Reactions detail**: Who added which reaction and when, e.g.:
-  - "😂 Mykolov (3:47 PM), Eric (3:48 PM)"
-  - "🔥 Brent (3:50 PM)"
-
-The popover should appear near the message (above or below depending on screen position), have a subtle dark background with a border, and disappear when the mouse moves away.
+Reference screenshots from the current mobile and desktop builds are the basis for these fixes. This document should be treated as a follow-up to the previous messaging refinements — everything from the last round has been implemented.
 
 ---
 
-## 2. Message Detail — Mobile Bottom Sheet
+## 1. FIX: Message Text Overflow
 
-On mobile, **tap-and-hold** on any message brings up a **bottom sheet** that slides up from the bottom of the screen.
-
-**Bottom sheet contents (top to bottom):**
-- **Message preview**: The message text (truncated if long) with sender name in their color
-- **Sent**: Exact date and time
-- **Read by**: List of readers with timestamps and player colors
-- **Reactions**: Who reacted with what, with timestamps
-- **Add Reaction**: The quick-access emoji row (personalized top 6) with a "+" for the full emoji picker
-- **Cancel / Close**: A visible "×" button at the top-right
-
-**Dismiss behavior:**
-- Swipe down on the bottom sheet to dismiss
-- Tap outside the bottom sheet (on the dimmed overlay) to dismiss
-- The sheet should have a small drag handle bar at the top to indicate swipe-ability
-- Smooth slide animation in and out (300ms ease transition)
-
----
-
-## 3. FIX: Reaction Bar Overflow on Small Screens
-
-On small screens, the quick-access reaction bar (the row of suggested emojis) can overflow off the edge of the screen.
+Messages with long unbroken strings (like URLs) overflow outside the message bubble container. Visible in the screenshots where a wikidot URL extends beyond the bubble boundary.
 
 **Fix:**
-- Make the reaction bar responsive to screen width
-- On very small screens (< 360px), show only 4 emojis in the quick-access row instead of 6, plus the "+" button
-- On medium-small screens (360-480px), show 5 emojis + "+"
-- On larger screens, show the full 6 + "+"
-- The bar should never horizontally overflow — use `max-width: 100%` and `overflow: hidden` as a safety net
-- The "+" button to open the full picker should ALWAYS be visible regardless of screen size
+- Add `word-break: break-word` and `overflow-wrap: break-word` to all message bubble containers
+- URLs and other long unbroken text must wrap within the bubble, never overflow
+- Apply to both sender and receiver message bubbles
+- Also apply to the message preview text in the conversation list (left panel) — long messages in the preview should truncate with ellipsis, not overflow
 
 ---
 
-## 4. Full Emoji Picker
+## 2. FIX: Conversation List — Sort by Last Message
 
-When a player taps the "+" button on the reaction quick-access row, open a **full emoji picker**.
+The conversation list (Friends tab, Groups tab, and DM's Player Chats tab) should be sorted by **most recent message first**. Conversations with the newest activity appear at the top.
 
-**Requirements:**
-- Displays all standard emojis organized by category (Smileys, People, Animals, Food, Travel, Objects, Symbols, Flags)
-- **Search bar** at the top — type to filter emojis by name/keyword (e.g., typing "fire" shows 🔥, typing "skull" shows 💀☠️)
-- Scrollable grid layout
-- Tapping an emoji immediately adds it as a reaction and closes the picker
-- On desktop: appears as a popover/dropdown near the message
-- On mobile: appears as part of the bottom sheet (replaces the quick-access row, with a back button to return)
-- Consider using `emoji-mart` or `@emoji-mart/react` rather than building from scratch — handles search, categories, and rendering efficiently
+- If a conversation has no messages, it sorts to the bottom
+- When a new message arrives in any conversation, that conversation jumps to the top of the list
+- This should apply to all tabs: My Chats, Player Chats (DM), and Groups
 
 ---
 
-## 5. DM Area — Live Message Feed Improvements
+## 3. FEATURE: Group Chat Deletion — Player Request Flow
 
-### Collapsible
-- The live message feed section should be **collapsible** — a header bar ("Live Message Feed") with a chevron toggle
-- Default state: expanded
-- Remember collapse state in `localStorage`
+Players should be able to **request** that a group chat be deleted, but only the DM can actually delete it.
 
-### Resizable Height
-- The feed container should have a **resizable height**
-- Default: ~400px
-- DM can drag the bottom edge to resize (CSS `resize: vertical` or a custom drag handle)
-- Min height: 200px, max height: 80vh
-- Remember preferred height in `localStorage`
+**Player side:**
+- In a group chat, add a "Request Deletion" option (accessible via a menu/gear icon in the chat header, or a long-press on the group in the Groups list)
+- Tapping it sends a notification/message to the DM: "[Player Name] has requested deletion of group '[Group Name]'"
+- The player sees a confirmation: "Deletion request sent to the DM"
+- The player CANNOT delete the group themselves
 
-### Clickable Messages — Navigate to Conversation
-- Each message entry in the live feed should be **clickable**
-- Clicking navigates the DM to `/messages` with that specific conversation open and scrolled to the relevant message
-- URL params: `/messages?conversation=[id]&message=[messageId]`
-- On the messages page, if these params are present:
-  1. Open the specified conversation in the center panel
-  2. Scroll to the specific message
-  3. Briefly highlight/pulse the message so the DM can spot it
+**DM side:**
+- DM receives the deletion request as a system notification or in the DM Area live feed
+- DM can then delete the group from their Groups tab or DM Area
+- Alternatively, the DM can ignore the request
+- DM retains the ability to delete any group at any time without a request
 
 ---
 
-## 6. CRITICAL: DM Area Access Control
+## 4. TWEAK: Inline Date/Time and Reaction Button
 
-The DM Area (`/dm`) must be completely invisible and inaccessible to regular players.
+Currently the timestamp ("2d ago") and the "+" reaction button are on separate lines below the message, taking up extra vertical space.
 
-- The `/dm` route should NOT appear in the nav bar for non-DM users
-- If a non-DM user manually navigates to `/dm`, redirect to homepage (or show "Not authorized")
-- The DM Area link only appears in nav when DM mode is authenticated
-- Server-side: the `/dm` page checks for DM auth on load — redirect if not authenticated
-- API routes that serve DM Area data (live feed, etc.) require DM auth
-- Enforce at BOTH UI and API level — do not rely solely on hiding the nav link
-
----
-
-## 7. Group Chat — Show Members in Header
-
-When viewing a group chat, the **header bar** should show who is in the group.
-
-- Display group name, then a row of **player name chips** (small colored pills with abbreviated names) showing all members
-- If chips overflow, show first few followed by "+2 more"
-- Tapping the chips row (or a small "ℹ" info button) expands a dropdown listing all members with full names in their player colors
-- Group creator is indicated with a small crown/star icon or "(creator)" label
-- DM shown as a member with their white color if they're in the group
+**Fix:**
+- Place the timestamp and the reaction trigger on the **same line**, right-aligned below the message body
+- Layout: `[timestamp]  [reaction button]` on one line, right-aligned within the bubble
+- The reaction button should be a small emoji icon (e.g., a subtle smiley face 😊 or a "+" inside a circle) rather than just a bare "+" character — make it clearer that tapping it adds a reaction
+- On hover (desktop), the reaction button can become more visible/prominent
+- On mobile, the reaction button should always be visible (no hover state needed)
+- Keep it subtle so it doesn't distract from the message content, but recognizable enough that players understand what it does
 
 ---
 
-## 8. Read Receipts
+## 5. FIX: Remove "Messages" Header on Mobile Chat View
 
-Show message senders when their messages have been read.
+When on mobile and viewing a specific conversation (after tapping a contact), the large "MESSAGES" page header still shows above the chat window. This wastes valuable screen real estate on mobile.
 
-**Direct Messages:**
-- Below each sent message (sender's side only), show:
-  - `✓ Sent` — recipient hasn't opened the conversation since this message
-  - `✓✓ Read` — recipient's `lastReadAt` is after this message's `createdAt`
-- Small muted text below the message bubble
-
-**Group Messages:**
-- Below each sent message, show who has read it
-- Format: `"Read by Mykolov, Eric"` or `"Read by 4/5"`
-- Tapping expands full list of who has/hasn't read it
-- Player names in their assigned colors
-
-**Implementation:**
-- Uses the existing `ConversationRead` model — no new tables needed
-- Compare message `createdAt` against each participant's `lastReadAt`
-- `lastReadAt` is already updated when a player opens a conversation (reuse unread badge logic)
+**Fix:**
+- When a conversation is open on mobile (the chat view is active), **hide the "MESSAGES" page title**
+- The conversation header (back arrow + contact name + pinboard icon) is sufficient for context
+- The "MESSAGES" title should only show on the conversation list view (when no chat is open)
+- This gives more vertical space for the actual message thread on small screens
 
 ---
 
-## 9. Message Reactions
+## 6. FIX: Mobile Bottom Sheet — Add Custom Reaction Button
 
-Players can react to any message with emojis.
+The mobile bottom sheet (shown when tap-holding a message) currently shows the 6 quick-access emojis but is **missing the "+" button** to open the full emoji picker.
 
-**Adding a Reaction:**
-- Long-press (mobile) or hover (desktop) shows a reaction picker
-- **Quick-access row**: 6 default emojis — 👍 👎 😂 😢 ❤️ 🔥
-- Below that, a "+" button opens the full emoji picker (item #4 above)
-- **Most-used sorting**: The quick-access row personalizes per player over time — track emoji usage frequency and replace defaults with their top 6. Fall back to defaults until enough data exists.
+**Fix:**
+- Always show the "+" button at the end of the quick-access emoji row in the bottom sheet
+- The "+" should open the full searchable emoji picker (as specified in the previous doc)
+- If screen width is too tight to show all 6 emojis + the "+", reduce the quick-access emojis (show 4 or 5) but ALWAYS keep the "+" visible
+- The "+" button should be the same size as the emoji buttons and clearly styled (e.g., a circle with a "+" inside, matching the overall theme)
 
-**Displaying Reactions:**
-- Reactions appear in a small row below the message bubble
-- Each unique emoji shown once with a count badge if multiple people used it (e.g., `😂 3`)
-- Tapping an existing reaction toggles your own (add/remove) without opening the picker
-- Hover (desktop) or tap-hold (mobile) on a reaction shows who reacted, in their player colors
-- A player can add multiple different emojis to one message but only one of each
-- Reactions should be subtle/small — don't overwhelm the thread
+---
 
-**Data Model:**
+## 7. FIX: Inline Reaction Picker — Responsive Emoji Count
 
-```prisma
-model MessageReaction {
-  id         String   @id @default(cuid())
-  messageId  String   // FK to MessageV2
-  playerName String
-  emoji      String   // the emoji character(s)
-  createdAt  DateTime @default(now())
-  @@unique([messageId, playerName, emoji])
-}
-```
+When pressing the "+" reaction button on a message and the inline reaction picker appears, on small screens the picker overflows and the "+" custom emoji button gets cut off.
 
-**API:**
-- `POST /api/messages/react` — add a reaction `{ messageId, playerName, emoji }`
-- `DELETE /api/messages/react` — remove a reaction `{ messageId, playerName, emoji }`
-- Reactions included in message list responses (nested under each message)
-- `GET /api/messages/emoji-stats?player=[name]` — returns player's top 6 most-used emojis
+**Fix:**
+- Dynamically adjust how many quick-access emojis show based on available screen width:
+  - Screen < 360px: show 3 emojis + "+" button
+  - Screen 360-420px: show 4 emojis + "+"
+  - Screen 420-500px: show 5 emojis + "+"
+  - Screen > 500px: show all 6 emojis + "+"
+- The "+" button to open the full emoji picker must ALWAYS be visible — it is never the element that gets cut off
+- Use CSS media queries or a JavaScript-based width check on the container
+- The picker should never cause horizontal scroll or overflow
+
+---
+
+## 8. TWEAK: Message Bubble Alignment
+
+Currently all message bubbles appear to be left-aligned regardless of who sent them. Standard chat convention is:
+
+- **Messages from the current user**: right-aligned, with a slightly different background color or border
+- **Messages from others**: left-aligned
+
+**Fix:**
+- Messages sent by the currently logged-in player should be right-aligned (`justify-end` / `ml-auto`)
+- Messages from others should be left-aligned (`justify-start` / `mr-auto`)
+- Both should have a max-width (e.g., 75-80% of the container) so they don't span the full width
+- Optionally, use a slightly different bubble background or border color for sent vs received to reinforce the distinction
+- The sender name label can be hidden on the current user's own messages (they know they sent it) or shown in a more subtle way
+
+---
+
+## 9. TWEAK: IC/OOC Buttons — Prevent Browser Chrome Overlap
+
+On mobile, the IC and OOC toggle buttons below the text input are partially cut off by the browser's bottom navigation chrome (visible in the screenshots).
+
+**Fix:**
+- Add `padding-bottom` or `margin-bottom` to the chat input area to account for mobile browser chrome
+- Use `env(safe-area-inset-bottom)` in CSS to dynamically handle the safe area on iOS and Android:
+  ```css
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  ```
+- Alternatively, move the IC/OOC toggles to be inline with the text input and send button (to the left of the text input, or as small toggle chips inside the input bar) rather than on a separate row below — this saves vertical space AND avoids the chrome overlap issue
+- Test on iOS Safari and Android Chrome to confirm nothing is cut off
+
+---
+
+## 10. TWEAK: Send Button Alignment (Revisited)
+
+The send button is still slightly misaligned vertically with the text input field (visible in screenshots).
+
+**Fix:**
+- Ensure the chat input container uses `display: flex; align-items: center;` (Tailwind: `flex items-center`)
+- The text input and send button should share the same height, or the send button should be vertically centered relative to the input
+- If the IC/OOC toggles remain below the input, they should not affect the vertical alignment of the input + send button row
+- Test on both mobile and desktop to confirm alignment
+
+---
+
+## 11. TWEAK: Conversation List — Visual Separation of DMs vs Groups
+
+In the DM's "My Chats" tab (screenshot 3), direct message conversations and group chats appear in the same list without clear visual distinction.
+
+**Fix:**
+- Direct messages show the player's colored dot + name (as they do now)
+- Group chats should have a visually distinct indicator — a small group icon (e.g., 👥) before the group name, or a different shaped indicator (square instead of circle dot)
+- This makes it easy to scan the list and distinguish DMs from groups at a glance
+
+---
+
+## 12. TWEAK: Reaction Picker — Better Trigger Button
+
+The current "+" button for adding reactions is not self-explanatory. New users might not understand it's for reactions.
+
+**Fix:**
+- Replace the bare "+" with a small, recognizable reaction icon. Options:
+  - A small smiley face outline (😊) that's slightly faded/muted — universally recognized as "add reaction"
+  - A smiley face with a small "+" overlay in the corner
+- On hover (desktop), show a tooltip: "Add reaction"
+- On first use (or first visit), optionally show a brief tooltip/hint that this is for reactions — then dismiss permanently after the player uses it once
