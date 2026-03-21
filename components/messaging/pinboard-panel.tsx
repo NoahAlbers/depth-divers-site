@@ -1,12 +1,25 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getPlayerColor } from "@/lib/players";
 
 interface PinboardPanelProps {
   conversationId: string;
   currentPlayer: string;
   onClose?: () => void;
   isOverlay?: boolean;
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }) + " at " + date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 export function PinboardPanel({
@@ -17,12 +30,16 @@ export function PinboardPanel({
 }: PinboardPanelProps) {
   const [content, setContent] = useState("");
   const [updatedBy, setUpdatedBy] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const lastSavedRef = useRef("");
+  const hasPendingEdits = useRef(false);
 
-  // Fetch pinboard
   const fetchPinboard = useCallback(async () => {
+    // Don't overwrite local edits
+    if (hasPendingEdits.current) return;
+
     try {
       const res = await fetch(
         `/api/conversations/${conversationId}/pinboard?player=${currentPlayer}`
@@ -30,19 +47,28 @@ export function PinboardPanel({
       if (res.ok) {
         const data = await res.json();
         if (data.pinboard) {
-          // Only update if we're not currently editing
           if (lastSavedRef.current === content || content === "") {
             setContent(data.pinboard.content);
             lastSavedRef.current = data.pinboard.content;
           }
           setUpdatedBy(data.pinboard.updatedBy);
+          setUpdatedAt(data.pinboard.updatedAt);
         }
       }
     } catch {}
   }, [conversationId, currentPlayer, content]);
 
+  // Fetch on mount + poll every 1 second
   useEffect(() => {
     fetchPinboard();
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchPinboard();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const savePinboard = useCallback(
@@ -58,7 +84,9 @@ export function PinboardPanel({
           }),
         });
         lastSavedRef.current = newContent;
+        hasPendingEdits.current = false;
         setUpdatedBy(currentPlayer);
+        setUpdatedAt(new Date().toISOString());
       } catch {}
       setSaving(false);
     },
@@ -67,6 +95,7 @@ export function PinboardPanel({
 
   const handleChange = (newContent: string) => {
     setContent(newContent);
+    hasPendingEdits.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       savePinboard(newContent);
@@ -123,7 +152,11 @@ export function PinboardPanel({
         {/* Footer */}
         {updatedBy && (
           <div className="border-t border-border px-3 py-1 text-[10px] text-gray-600">
-            Last edited by {updatedBy}
+            Last edited by{" "}
+            <span style={{ color: getPlayerColor(updatedBy) }}>
+              {updatedBy}
+            </span>
+            {updatedAt && <> — {formatDate(updatedAt)}</>}
           </div>
         )}
       </div>

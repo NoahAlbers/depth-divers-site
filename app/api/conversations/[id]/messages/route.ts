@@ -47,8 +47,43 @@ export async function GET(
     },
   });
 
+  // Fetch read receipts for this conversation
+  const readReceipts = await prisma.conversationRead.findMany({
+    where: { conversationId: id },
+  });
+  const readMap: Record<string, string> = {};
+  for (const r of readReceipts) {
+    readMap[r.playerName] = r.lastReadAt.toISOString();
+  }
+
+  // Get conversation members
+  const convo = await prisma.conversation.findUnique({ where: { id } });
+  const members: string[] = convo ? JSON.parse(convo.members) : [];
+
+  // Fetch reactions for all messages in this batch
+  const messageIds = messages.map((m) => m.id);
+  const reactions = messageIds.length > 0
+    ? await prisma.messageReaction.findMany({
+        where: { messageId: { in: messageIds } },
+      })
+    : [];
+
+  // Group reactions by messageId
+  const reactionsByMessage: Record<string, Array<{ playerName: string; emoji: string }>> = {};
+  for (const r of reactions) {
+    if (!reactionsByMessage[r.messageId]) reactionsByMessage[r.messageId] = [];
+    reactionsByMessage[r.messageId].push({ playerName: r.playerName, emoji: r.emoji });
+  }
+
+  const messagesWithReactions = messages.map((msg) => ({
+    ...msg,
+    reactions: reactionsByMessage[msg.id] || [],
+  }));
+
   return NextResponse.json({
-    messages,
+    messages: messagesWithReactions,
+    readReceipts: readMap,
+    members,
     lastUpdated: new Date().toISOString(),
   });
 }

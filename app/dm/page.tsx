@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { usePlayer } from "@/lib/player-context";
 import { PLAYERS, getPlayerColor, POLL_INTERVAL_MS } from "@/lib/players";
 import { GAMES } from "@/lib/games/registry";
@@ -62,13 +62,145 @@ function DMDashboard({ dmPassword }: { dmPassword: string }) {
         </h1>
         <EnvironmentBadge />
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Live Message Feed - full width */}
+      <LiveMessageFeed dmPassword={dmPassword} />
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <ImpersonateSection />
         <RecapRandomizer />
         <SeatingControls headers={headers} />
         <InitiativeControls headers={headers} />
         <GameLauncher headers={headers} />
         <PlaceholderCard title="Session Notes" icon="📝" />
+      </div>
+    </div>
+  );
+}
+
+/* ===== LIVE MESSAGE FEED ===== */
+
+interface FeedMessage {
+  id: string;
+  from: string;
+  body: string;
+  tag: string | null;
+  createdAt: string;
+  conversationName: string | null;
+  conversationType: string;
+  conversationMembers: string[];
+}
+
+function LiveMessageFeed({ dmPassword }: { dmPassword: string }) {
+  const [messages, setMessages] = useState<FeedMessage[]>([]);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const fetchFeed = useCallback(async () => {
+    try {
+      const res = await fetch("/api/messages/feed?limit=50", {
+        headers: { "x-dm-password": dmPassword },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data.messages);
+      }
+    } catch {}
+  }, [dmPassword]);
+
+  useEffect(() => {
+    fetchFeed();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchFeed();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [fetchFeed]);
+
+  useEffect(() => {
+    if (autoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, autoScroll]);
+
+  function getRecipientLabel(msg: FeedMessage): string {
+    if (msg.conversationType === "group") {
+      return `\u2192 ${msg.conversationName || "Group"}`;
+    }
+    const other = msg.conversationMembers.find((m) => m !== msg.from);
+    return `\u2192 ${other || "?"}`;
+  }
+
+  function relTime(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "now";
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h`;
+    return `${Math.floor(hrs / 24)}d`;
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-surface">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2">
+        <h2 className="font-cinzel text-sm font-bold text-gold">
+          Live Message Feed
+        </h2>
+        <button
+          onClick={() => setAutoScroll(!autoScroll)}
+          className={`rounded px-2 py-0.5 text-[10px] transition-colors ${
+            autoScroll
+              ? "bg-green-900/30 text-green-400"
+              : "bg-gray-700 text-gray-400"
+          }`}
+        >
+          {autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF"}
+        </button>
+      </div>
+      <div
+        ref={scrollRef}
+        className="max-h-[300px] overflow-y-auto p-2"
+      >
+        {messages.length === 0 ? (
+          <p className="py-4 text-center text-xs text-gray-600">
+            No messages yet
+          </p>
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg.id}
+              className="flex items-start gap-2 rounded px-2 py-1 text-xs hover:bg-surface-light"
+            >
+              <span className="flex-shrink-0 text-gray-600">
+                {relTime(msg.createdAt)}
+              </span>
+              <span
+                className="flex-shrink-0 font-bold"
+                style={{ color: getPlayerColor(msg.from) }}
+              >
+                {msg.from}
+              </span>
+              <span className="flex-shrink-0 text-gray-600">
+                {getRecipientLabel(msg)}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-gray-400">
+                {msg.body.length > 100
+                  ? msg.body.slice(0, 100) + "..."
+                  : msg.body}
+              </span>
+              {msg.tag && (
+                <span
+                  className={`flex-shrink-0 rounded px-1 py-0.5 text-[9px] font-bold ${
+                    msg.tag === "IC"
+                      ? "bg-purple-600/30 text-purple-300"
+                      : "bg-blue-600/30 text-blue-300"
+                  }`}
+                >
+                  {msg.tag}
+                </span>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

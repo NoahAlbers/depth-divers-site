@@ -99,6 +99,19 @@ model PushSubscription {
   @@unique([playerName, endpoint])
 }
 
+// --- Message Reactions ---
+
+model MessageReaction {
+  id         String   @id @default(cuid())
+  messageId  String
+  playerName String
+  emoji      String
+  createdAt  DateTime @default(now())
+
+  @@unique([messageId, playerName, emoji])
+  @@index([messageId])
+}
+
 // --- Games ---
 
 model GameSession {

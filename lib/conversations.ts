@@ -6,38 +6,34 @@ const ALL_MEMBERS = [...PLAYERS.map((p) => p.name), DM.name];
 let seeded = false;
 
 /**
- * Ensure default conversations exist (6 DM convos + Party Chat).
+ * Ensure default conversations exist.
+ * Creates DM conversations for ALL member pairs + Party Chat group.
  * Called lazily from the conversations API. Idempotent.
  */
 export async function ensureConversations() {
   if (seeded) return;
 
-  // Check if any conversations exist already
-  const count = await prisma.conversation.count();
-  if (count > 0) {
-    seeded = true;
-    return;
-  }
-
-  // Create DM conversations: each player ↔ Noah
-  for (const player of PLAYERS) {
-    const members = JSON.stringify([player.name, DM.name].sort());
-    const existing = await prisma.conversation.findFirst({
-      where: { type: "dm", members },
-    });
-    if (!existing) {
-      await prisma.conversation.create({
-        data: {
-          type: "dm",
-          members,
-          createdBy: "system",
-        },
+  // Create DM conversations for every pair of members
+  for (let i = 0; i < ALL_MEMBERS.length; i++) {
+    for (let j = i + 1; j < ALL_MEMBERS.length; j++) {
+      const members = JSON.stringify([ALL_MEMBERS[i], ALL_MEMBERS[j]].sort());
+      const existing = await prisma.conversation.findFirst({
+        where: { type: "dm", members },
       });
+      if (!existing) {
+        await prisma.conversation.create({
+          data: {
+            type: "dm",
+            members,
+            createdBy: "system",
+          },
+        });
+      }
     }
   }
 
   // Create Party Chat group
-  const partyMembers = JSON.stringify(ALL_MEMBERS.sort());
+  const partyMembers = JSON.stringify([...ALL_MEMBERS].sort());
   const existingParty = await prisma.conversation.findFirst({
     where: { type: "group", name: "Party Chat" },
   });

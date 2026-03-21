@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getPlayerColor } from "@/lib/players";
+import { ReactionPicker } from "./reaction-picker";
+
+interface Reaction {
+  playerName: string;
+  emoji: string;
+}
 
 interface Message {
   id: string;
@@ -9,12 +15,17 @@ interface Message {
   body: string;
   tag: string | null;
   createdAt: string;
+  reactions?: Reaction[];
 }
 
 interface ChatThreadProps {
   messages: Message[];
   currentPlayer: string;
   conversationName: string;
+  readReceipts?: Record<string, string>;
+  conversationMembers?: string[];
+  onReact?: (messageId: string, emoji: string) => void;
+  onRemoveReaction?: (messageId: string, emoji: string) => void;
   onBack?: () => void;
   onTogglePinboard?: () => void;
   showBackButton?: boolean;
@@ -33,6 +44,10 @@ function relativeTime(dateStr: string): string {
 
 export function ChatThread({
   messages,
+  readReceipts = {},
+  conversationMembers = [],
+  onReact,
+  onRemoveReaction,
   currentPlayer,
   conversationName,
   onBack,
@@ -41,6 +56,7 @@ export function ChatThread({
 }: ChatThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(messages.length);
+  const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     // Auto-scroll on new messages
@@ -142,10 +158,106 @@ export function ChatThread({
                       {msg.body}
                     </p>
 
-                    {/* Timestamp */}
-                    <p className="mt-1 text-right text-[10px] text-gray-600">
-                      {relativeTime(msg.createdAt)}
-                    </p>
+                    {/* Reactions display */}
+                    {msg.reactions && msg.reactions.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {(() => {
+                          // Group reactions by emoji
+                          const grouped: Record<string, string[]> = {};
+                          for (const r of msg.reactions) {
+                            if (!grouped[r.emoji]) grouped[r.emoji] = [];
+                            grouped[r.emoji].push(r.playerName);
+                          }
+                          return Object.entries(grouped).map(([emoji, players]) => {
+                            const hasReacted = players.includes(currentPlayer);
+                            return (
+                              <button
+                                key={emoji}
+                                onClick={() => {
+                                  if (hasReacted) {
+                                    onRemoveReaction?.(msg.id, emoji);
+                                  } else {
+                                    onReact?.(msg.id, emoji);
+                                  }
+                                }}
+                                className={`flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-xs transition-colors ${
+                                  hasReacted
+                                    ? "border-gold/40 bg-gold/10"
+                                    : "border-border bg-surface-light hover:border-gray-500"
+                                }`}
+                                title={players.map((p) => p).join(", ")}
+                              >
+                                <span>{emoji}</span>
+                                {players.length > 1 && (
+                                  <span className="text-[10px] text-gray-400">
+                                    {players.length}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          });
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Timestamp + Read receipt */}
+                    <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] text-gray-600">
+                      {isOwn && (() => {
+                        const msgTime = new Date(msg.createdAt).getTime();
+                        const otherMembers = conversationMembers.filter(
+                          (m) => m !== currentPlayer
+                        );
+                        const readBy = otherMembers.filter((m) => {
+                          const readAt = readReceipts[m];
+                          return readAt && new Date(readAt).getTime() > msgTime;
+                        });
+
+                        if (otherMembers.length <= 2) {
+                          // DM: simple sent/read
+                          return readBy.length > 0 ? (
+                            <span className="text-green-500/70">✓✓ Read</span>
+                          ) : (
+                            <span>✓ Sent</span>
+                          );
+                        } else {
+                          // Group: show who read
+                          return readBy.length > 0 ? (
+                            <span className="text-green-500/70">
+                              Read by {readBy.length}/{otherMembers.length}
+                            </span>
+                          ) : (
+                            <span>✓ Sent</span>
+                          );
+                        }
+                      })()}
+                      <span>{relativeTime(msg.createdAt)}</span>
+                    </div>
+                    {/* React button */}
+                    {onReact && (
+                      <div className="mt-0.5 flex justify-end">
+                        <button
+                          onClick={() =>
+                            setPickerMessageId(
+                              pickerMessageId === msg.id ? null : msg.id
+                            )
+                          }
+                          className="rounded px-1 py-0.5 text-[10px] text-gray-600 transition-colors hover:bg-surface-light hover:text-gray-400"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Reaction picker */}
+                    {pickerMessageId === msg.id && onReact && (
+                      <div className="mt-1">
+                        <ReactionPicker
+                          playerName={currentPlayer}
+                          onSelect={(emoji) => onReact(msg.id, emoji)}
+                          onClose={() => setPickerMessageId(null)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               );

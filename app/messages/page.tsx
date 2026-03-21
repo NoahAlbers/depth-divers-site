@@ -47,17 +47,21 @@ interface ConversationsResponse {
 
 interface MessagesResponse {
   messages: Message[];
+  readReceipts: Record<string, string>;
+  members: string[];
   lastUpdated: string;
 }
 
 export default function MessagesPage() {
-  const { currentPlayer, effectivePlayer } = usePlayer();
+  const { currentPlayer, effectivePlayer, effectiveIsDM } = usePlayer();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "chat" | "pinboard">(
     "list"
   );
   const [showPinboard, setShowPinboard] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
+  const [convoMembers, setConvoMembers] = useState<string[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
 
   const playerName = effectivePlayer;
@@ -81,6 +85,8 @@ export default function MessagesPage() {
       if (res.ok) {
         const data: MessagesResponse = await res.json();
         setMessages(data.messages);
+        setReadReceipts(data.readReceipts || {});
+        setConvoMembers(data.members || []);
       }
     } catch {}
   }, [selectedId, playerName]);
@@ -110,6 +116,26 @@ export default function MessagesPage() {
   const handleBack = () => {
     setMobileView("list");
     setSelectedId(null);
+  };
+
+  const handleReact = async (messageId: string, emoji: string) => {
+    if (!playerName) return;
+    await fetch("/api/messages/react", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId, playerName, emoji }),
+    });
+    fetchMessages();
+  };
+
+  const handleRemoveReaction = async (messageId: string, emoji: string) => {
+    if (!playerName) return;
+    await fetch("/api/messages/react", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId, playerName, emoji }),
+    });
+    fetchMessages();
   };
 
   const handleSend = async (body: string, tag: "IC" | "OOC" | null) => {
@@ -171,6 +197,7 @@ export default function MessagesPage() {
             selectedId={selectedId}
             onSelect={handleSelectConversation}
             currentPlayer={playerName || ""}
+            isDM={effectiveIsDM}
             onCreateGroup={handleCreateGroup}
           />
         </div>
@@ -187,6 +214,10 @@ export default function MessagesPage() {
                 messages={messages}
                 currentPlayer={playerName || ""}
                 conversationName={conversationDisplayName}
+                readReceipts={readReceipts}
+                conversationMembers={convoMembers}
+                onReact={handleReact}
+                onRemoveReaction={handleRemoveReaction}
                 onBack={handleBack}
                 onTogglePinboard={() => {
                   setShowPinboard(!showPinboard);

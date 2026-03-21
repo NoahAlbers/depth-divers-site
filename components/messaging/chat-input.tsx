@@ -32,7 +32,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   return (
     <div className="border-t border-border bg-surface p-3">
-      <div className="flex items-end gap-2">
+      <div className="flex items-center gap-2">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <textarea
             ref={textareaRef}
