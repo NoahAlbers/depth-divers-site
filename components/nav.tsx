@@ -1,14 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePlayer } from "@/lib/player-context";
 import { PLAYERS, DM } from "@/lib/players";
+import { useUnreadCount } from "@/lib/use-unread-count";
+import { UnreadBadge } from "@/components/messaging/unread-badge";
 
 const ALL_CHARACTERS = [...PLAYERS, DM];
 
 export function Nav() {
   const { currentPlayer, isDM, login, logout } = usePlayer();
+  const playerName = isDM ? "Noah" : currentPlayer;
+  const { totalUnread } = useUnreadCount(playerName);
+
+  // Update document title with unread count
+  useEffect(() => {
+    document.title = totalUnread > 0 ? `(${totalUnread}) Depth Divers` : "Depth Divers";
+  }, [totalUnread]);
+
   const [showLogin, setShowLogin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [loginName, setLoginName] = useState<string>(PLAYERS[0].name);
@@ -61,9 +71,12 @@ export function Nav() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm text-gray-300 transition-colors hover:text-[#e5c07b]"
+              className="relative text-sm text-gray-300 transition-colors hover:text-[#e5c07b]"
             >
               {link.label}
+              {link.href === "/messages" && totalUnread > 0 && (
+                <UnreadBadge count={totalUnread} className="ml-1" />
+              )}
             </Link>
           ))}
 
@@ -135,6 +148,9 @@ export function Nav() {
               className="block py-2 text-sm text-gray-300 hover:text-[#e5c07b]"
             >
               {link.label}
+              {link.href === "/messages" && totalUnread > 0 && (
+                <UnreadBadge count={totalUnread} className="ml-1" />
+              )}
             </Link>
           ))}
           <div className="mt-2 border-t border-gray-800 pt-2">

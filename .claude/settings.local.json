@@ -5,7 +5,10 @@
       "Bash(cp:*)",
       "Bash(npm install:*)",
       "Bash(npm run:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/conversations/[id]/messages\")",
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/conversations/[id]/read\")",
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/conversations/[id]/pinboard\")"
     ]
   }
 }

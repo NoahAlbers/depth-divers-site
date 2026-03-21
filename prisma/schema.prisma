@@ -46,3 +46,42 @@ model SeatingLock {
   lockedBy String
   lockedAt DateTime @default(now())
 }
+
+// --- Messaging V2 ---
+
+model Conversation {
+  id        String   @id @default(cuid())
+  type      String   // "dm" or "group"
+  name      String?  // group name (null for DMs)
+  members   String   // JSON array of player names
+  createdBy String
+  createdAt DateTime @default(now())
+}
+
+model MessageV2 {
+  id             String   @id @default(cuid())
+  conversationId String
+  from           String
+  body           String
+  tag            String?  // "IC", "OOC", or null
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model ConversationRead {
+  id             String   @id @default(cuid())
+  conversationId String
+  playerName     String
+  lastReadAt     DateTime @default(now())
+
+  @@unique([conversationId, playerName])
+}
+
+model Pinboard {
+  id             String   @id @default(cuid())
+  conversationId String   @unique
+  content        String   @default("")
+  updatedAt      DateTime @updatedAt
+  updatedBy      String?
+}

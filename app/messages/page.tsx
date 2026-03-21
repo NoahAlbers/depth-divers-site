@@ -1,260 +1,234 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePlayer } from "@/lib/player-context";
-import { PLAYERS, DM, getPlayerColor, POLL_INTERVAL_MS } from "@/lib/players";
-import { PlayerChip } from "@/components/player-chip";
-import { DmGate } from "@/components/dm-gate";
+import { usePolling } from "@/lib/polling";
+import { POLL_INTERVAL_MS } from "@/lib/players";
+import { ConversationList } from "@/components/messaging/conversation-list";
+import { ChatThread } from "@/components/messaging/chat-thread";
+import { ChatInput } from "@/components/messaging/chat-input";
+import { PinboardPanel } from "@/components/messaging/pinboard-panel";
+
+function getConversationDisplayName(
+  convo: { type: string; name: string | null; members: string[] },
+  viewerName: string
+): string {
+  if (convo.type === "group") return convo.name || "Group Chat";
+  const other = convo.members.find((m) => m !== viewerName);
+  return other || "Unknown";
+}
+
+interface ConversationItem {
+  id: string;
+  type: string;
+  name: string | null;
+  members: string[];
+  createdBy: string;
+  lastMessage: {
+    from: string;
+    body: string;
+    createdAt: string;
+  } | null;
+  unreadCount: number;
+}
 
 interface Message {
   id: string;
   from: string;
-  to: string;
   body: string;
+  tag: string | null;
   createdAt: string;
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+interface ConversationsResponse {
+  conversations: ConversationItem[];
+  lastUpdated: string;
+}
+
+interface MessagesResponse {
+  messages: Message[];
+  lastUpdated: string;
 }
 
 export default function MessagesPage() {
   const { currentPlayer, isDM } = usePlayer();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"list" | "chat" | "pinboard">(
+    "list"
+  );
+  const [showPinboard, setShowPinboard] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [recipient, setRecipient] = useState<string>("DM");
-  const [body, setBody] = useState("");
-  const [dmFilter, setDmFilter] = useState<string | null>(null);
+  const [messagesLoading, setMessagesLoading] = useState(false);
 
-  const senderName = isDM ? "DM" : currentPlayer;
+  const playerName = isDM ? "Noah" : currentPlayer;
 
+  // Poll conversations list
+  const { data: convosData, refetch: refetchConvos } =
+    usePolling<ConversationsResponse>(
+      playerName ? `/api/conversations?player=${playerName}` : ""
+    );
+
+  const conversations = convosData?.conversations ?? [];
+  const selectedConvo = conversations.find((c) => c.id === selectedId);
+
+  // Poll messages for selected conversation
   const fetchMessages = useCallback(async () => {
-    if (!senderName) return;
-    const player = isDM ? "DM" : senderName;
-    const headers: Record<string, string> = {};
-    if (isDM) {
-      headers["x-dm-password"] = localStorage.getItem("dnd-dm-password") || "noah";
-    }
+    if (!selectedId || !playerName) return;
     try {
-      const res = await fetch(`/api/messages?player=${player}`, { headers });
+      const res = await fetch(
+        `/api/conversations/${selectedId}/messages?player=${playerName}`
+      );
       if (res.ok) {
-        const data = await res.json();
+        const data: MessagesResponse = await res.json();
         setMessages(data.messages);
       }
     } catch {}
-  }, [senderName, isDM]);
+  }, [selectedId, playerName]);
 
   useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") fetchMessages();
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [fetchMessages]);
+    if (!selectedId) {
+      setMessages([]);
+      return;
+    }
+    setMessagesLoading(true);
+    fetchMessages().then(() => setMessagesLoading(false));
 
-  const sendMessage = async () => {
-    if (!body.trim() || !senderName) return;
-    await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: senderName, to: recipient, body }),
-    });
-    setBody("");
-    fetchMessages();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchMessages();
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [selectedId, fetchMessages]);
+
+  const handleSelectConversation = (id: string) => {
+    setSelectedId(id);
+    setMobileView("chat");
   };
 
-  // Get available recipients
-  const recipients = useMemo(() => {
-    const others = PLAYERS.filter((p) => p.name !== currentPlayer).map(
-      (p) => p.name
-    );
-    if (!isDM) {
-      return [...others, "DM", "ALL"];
-    }
-    return [...PLAYERS.map((p) => p.name), "ALL"];
-  }, [currentPlayer, isDM]);
+  const handleBack = () => {
+    setMobileView("list");
+    setSelectedId(null);
+  };
 
-  // Group conversations for DM view
-  const conversationPairs = useMemo(() => {
-    if (!isDM) return [];
-    const pairs = new Map<string, Message[]>();
-    messages.forEach((m) => {
-      const key =
-        m.to === "ALL"
-          ? "Group"
-          : [m.from, m.to].sort().join(" & ");
-      if (!pairs.has(key)) pairs.set(key, []);
-      pairs.get(key)!.push(m);
+  const handleSend = async (body: string, tag: "IC" | "OOC" | null) => {
+    if (!selectedId || !playerName) return;
+
+    await fetch(`/api/conversations/${selectedId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: playerName, body, tag }),
     });
-    return Array.from(pairs.entries()).sort(
-      (a, b) =>
-        new Date(b[1][0].createdAt).getTime() -
-        new Date(a[1][0].createdAt).getTime()
-    );
-  }, [messages, isDM]);
 
-  // Filter messages for player view by current conversation
-  const visibleMessages = useMemo(() => {
-    if (isDM) {
-      if (dmFilter) {
-        return conversationPairs.find(([key]) => key === dmFilter)?.[1] ?? [];
-      }
-      return messages;
-    }
-    // Player view: show conversation with selected recipient
-    return messages
-      .filter((m) => {
-        if (recipient === "ALL") return m.to === "ALL";
-        return (
-          (m.from === senderName && m.to === recipient) ||
-          (m.from === recipient && m.to === senderName)
-        );
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-  }, [messages, isDM, recipient, senderName, dmFilter, conversationPairs]);
+    fetchMessages();
+    refetchConvos();
+  };
 
-  if (!currentPlayer && !isDM) {
+  const handleCreateGroup = async (name: string, members: string[]) => {
+    if (!playerName) return;
+
+    await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        members: [...members, playerName],
+        createdBy: playerName,
+      }),
+    });
+
+    refetchConvos();
+  };
+
+  const conversationDisplayName = selectedConvo
+    ? getConversationDisplayName(selectedConvo, playerName || "")
+    : "";
+
+  if (!currentPlayer) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-gray-400">
-          Select your character from the nav bar to use messaging.
-        </p>
+        <p className="text-gray-400">Log in to view messages.</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="mb-6 font-cinzel text-3xl font-bold text-gold">
-        Secret Messages
+    <div className="flex h-[calc(100vh-80px)] flex-col">
+      <h1 className="mb-2 px-0 font-cinzel text-3xl font-bold text-gold md:mb-0 md:hidden">
+        Messages
       </h1>
 
-      {/* DM God Mode Inbox */}
-      {isDM && (
-        <div className="mb-6">
-          <div className="mb-3 flex flex-wrap gap-2">
-            <button
-              onClick={() => setDmFilter(null)}
-              className={`rounded px-3 py-1 text-xs font-bold transition-colors ${
-                !dmFilter
-                  ? "bg-gold text-background"
-                  : "bg-surface text-gray-400 hover:text-white"
-              }`}
-            >
-              All
-            </button>
-            {conversationPairs.map(([key, msgs]) => (
-              <button
-                key={key}
-                onClick={() => setDmFilter(dmFilter === key ? null : key)}
-                className={`rounded px-3 py-1 text-xs transition-colors ${
-                  dmFilter === key
-                    ? "bg-gold text-background font-bold"
-                    : "bg-surface text-gray-400 hover:text-white"
-                }`}
-              >
-                {key} ({msgs.length})
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-        {/* Compose */}
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <h2 className="mb-3 font-cinzel text-sm font-bold text-gold">
-            Send Message
-          </h2>
-          <select
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            className="mb-3 w-full rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white"
-          >
-            {recipients.map((r) => (
-              <option key={r} value={r}>
-                {r === "ALL" ? "Everyone" : r}
-              </option>
-            ))}
-          </select>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-            placeholder="Write your message..."
-            rows={3}
-            className="mb-3 w-full resize-none rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-gold focus:outline-none"
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+        {/* Left panel - conversation list */}
+        <div
+          className={`w-full flex-shrink-0 md:w-[280px] ${
+            mobileView !== "list" ? "hidden md:block" : ""
+          }`}
+        >
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedId}
+            onSelect={handleSelectConversation}
+            currentPlayer={playerName || ""}
+            onCreateGroup={handleCreateGroup}
           />
-          <button
-            onClick={sendMessage}
-            disabled={!body.trim()}
-            className="w-full rounded bg-gold px-4 py-2 text-sm font-bold text-background transition-colors hover:bg-[#f0d090] disabled:opacity-50"
-          >
-            Send
-          </button>
         </div>
 
-        {/* Messages */}
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <h2 className="mb-3 font-cinzel text-sm font-bold text-gold">
-            {isDM
-              ? dmFilter
-                ? `Conversation: ${dmFilter}`
-                : "All Messages"
-              : `Conversation with ${recipient === "ALL" ? "Everyone" : recipient}`}
-          </h2>
-          <div className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
-            {visibleMessages.length === 0 ? (
-              <p className="py-8 text-center text-sm text-gray-500">
-                No messages yet
+        {/* Center panel - chat */}
+        <div
+          className={`flex min-w-0 flex-1 flex-col ${
+            mobileView !== "chat" ? "hidden md:flex" : ""
+          }`}
+        >
+          {selectedId && selectedConvo ? (
+            <>
+              <ChatThread
+                messages={messages}
+                currentPlayer={playerName || ""}
+                conversationName={conversationDisplayName}
+                onBack={handleBack}
+                onTogglePinboard={() => {
+                  setShowPinboard(!showPinboard);
+                  // On small screens, show as overlay
+                  if (window.innerWidth < 768) {
+                    setMobileView("pinboard");
+                  }
+                }}
+                showBackButton={true}
+              />
+              <ChatInput onSend={handleSend} disabled={messagesLoading} />
+            </>
+          ) : (
+            <div className="flex flex-1 items-center justify-center">
+              <p className="text-gray-500">
+                Select a conversation to start chatting
               </p>
-            ) : (
-              visibleMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`rounded px-3 py-2 ${
-                    msg.from === senderName
-                      ? "ml-8 bg-surface-light"
-                      : "mr-8 bg-background"
-                  }`}
-                >
-                  <div className="mb-1 flex items-center gap-2">
-                    <PlayerChip name={msg.from} />
-                    {isDM && (
-                      <span className="text-[10px] text-gray-500">
-                        to{" "}
-                        <span
-                          style={{ color: getPlayerColor(msg.to) }}
-                          className="font-bold"
-                        >
-                          {msg.to === "ALL" ? "Everyone" : msg.to}
-                        </span>
-                      </span>
-                    )}
-                    <span className="ml-auto text-[10px] text-gray-500">
-                      {timeAgo(msg.createdAt)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-200">{msg.body}</p>
-                </div>
-              ))
-            )}
-          </div>
+            </div>
+          )}
         </div>
+
+        {/* Right panel - pinboard (desktop only) */}
+        {showPinboard && selectedId && (
+          <div className="hidden w-[240px] flex-shrink-0 md:block">
+            <PinboardPanel
+              conversationId={selectedId}
+              currentPlayer={playerName || ""}
+              onClose={() => setShowPinboard(false)}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Pinboard overlay (mobile) */}
+      {mobileView === "pinboard" && selectedId && (
+        <PinboardPanel
+          conversationId={selectedId}
+          currentPlayer={playerName || ""}
+          onClose={() => setMobileView("chat")}
+          isOverlay
+        />
+      )}
     </div>
   );
 }
