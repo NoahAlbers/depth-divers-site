@@ -6,6 +6,7 @@ import { usePlayer } from "@/lib/player-context";
 import { PLAYERS, DM } from "@/lib/players";
 import { useUnreadCount } from "@/lib/use-unread-count";
 import { UnreadBadge } from "@/components/messaging/unread-badge";
+import { usePush } from "@/lib/use-push";
 
 const ALL_CHARACTERS = [...PLAYERS, DM];
 
@@ -13,6 +14,7 @@ export function Nav() {
   const { currentPlayer, isDM, login, logout } = usePlayer();
   const playerName = isDM ? "Noah" : currentPlayer;
   const { totalUnread } = useUnreadCount(playerName);
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePush(playerName);
 
   // Update document title with unread count
   useEffect(() => {
@@ -94,6 +96,17 @@ export function Nav() {
                     DM
                   </span>
                 )}
+                {pushSupported && (
+                  <button
+                    onClick={() => pushSubscribed ? pushUnsubscribe() : pushSubscribe()}
+                    className={`transition-colors ${pushSubscribed ? "text-[#e5c07b]" : "text-gray-400 hover:text-white"}`}
+                    title={pushSubscribed ? "Notifications on" : "Enable notifications"}
+                  >
+                    <svg className="h-4 w-4" fill={pushSubscribed ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   onClick={() => setShowSettings(true)}
                   className="text-gray-400 transition-colors hover:text-white"
@@ -168,6 +181,14 @@ export function Nav() {
                     </span>
                   )}
                 </div>
+                {pushSupported && (
+                  <button
+                    onClick={() => { pushSubscribed ? pushUnsubscribe() : pushSubscribe(); }}
+                    className={`block py-2 text-sm ${pushSubscribed ? "text-[#e5c07b]" : "text-gray-400 hover:text-white"}`}
+                  >
+                    {pushSubscribed ? "Notifications On" : "Enable Notifications"}
+                  </button>
+                )}
                 <button
                   onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }}
                   className="block py-2 text-sm text-gray-400 hover:text-white"

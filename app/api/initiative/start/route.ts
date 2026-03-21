@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isDMAuthorized } from "@/lib/dm-auth";
+import { sendPushToAllPlayers } from "@/lib/push";
 
 export async function POST(request: Request) {
   if (!(await isDMAuthorized(request))) {
@@ -30,6 +31,14 @@ export async function POST(request: Request) {
       })),
     });
   }
+
+  // Fire-and-forget push notification
+  sendPushToAllPlayers({
+    title: "Roll Initiative!",
+    body: "A new encounter has started. Submit your roll.",
+    url: "/initiative",
+    tag: "initiative",
+  });
 
   return NextResponse.json({ success: true, phase: "entry" }, { status: 201 });
 }

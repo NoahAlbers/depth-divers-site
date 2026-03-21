@@ -85,3 +85,16 @@ model Pinboard {
   updatedAt      DateTime @updatedAt
   updatedBy      String?
 }
+
+// --- Push Notifications ---
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  playerName String
+  endpoint   String
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+
+  @@unique([playerName, endpoint])
+}

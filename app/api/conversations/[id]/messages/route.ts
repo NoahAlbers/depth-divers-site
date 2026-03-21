@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isPlayerInConversation } from "@/lib/conversations";
 import { ALL_NAMES } from "@/lib/players";
+import { sendPushToPlayers } from "@/lib/push";
 
 export async function GET(
   request: Request,
@@ -111,6 +112,21 @@ export async function POST(
       lastReadAt: new Date(),
     },
   });
+
+  // Fire-and-forget push notification to other members
+  const convo = await prisma.conversation.findUnique({ where: { id } });
+  if (convo) {
+    const members: string[] = JSON.parse(convo.members);
+    const senderName = from === "DM" ? "Noah" : from;
+    const recipients = members.filter((m) => m !== senderName);
+    const truncatedBody = body.trim().length > 50 ? body.trim().slice(0, 50) + "..." : body.trim();
+    sendPushToPlayers(recipients, {
+      title: `${from} sent a message`,
+      body: truncatedBody,
+      url: "/messages",
+      tag: "message",
+    });
+  }
 
   return NextResponse.json(message, { status: 201 });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isDMAuthorized } from "@/lib/dm-auth";
+import { sendPushToAllPlayers } from "@/lib/push";
 
 export async function POST(request: Request) {
   if (!(await isDMAuthorized(request))) {
@@ -44,6 +45,14 @@ export async function POST(request: Request) {
       data: { phase: "locked", isActive: true },
     }),
   ]);
+
+  // Fire-and-forget push notification
+  sendPushToAllPlayers({
+    title: "Initiative Locked",
+    body: "Combat begins! Check the turn order.",
+    url: "/initiative",
+    tag: "initiative",
+  });
 
   return NextResponse.json({ success: true, phase: "locked" });
 }
