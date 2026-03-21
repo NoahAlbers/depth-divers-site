@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getPlayerColor } from "@/lib/players";
+import { getPlayerColor, getPlayerShort } from "@/lib/players";
 import { ReactionPicker } from "./reaction-picker";
+import { MessageDetailSheet } from "./message-detail-sheet";
+import { FullEmojiPicker } from "./full-emoji-picker";
 
 interface Reaction {
   playerName: string;
@@ -26,6 +28,7 @@ interface ChatThreadProps {
   conversationMembers?: string[];
   onReact?: (messageId: string, emoji: string) => void;
   onRemoveReaction?: (messageId: string, emoji: string) => void;
+  highlightMessageId?: string | null;
   onBack?: () => void;
   onTogglePinboard?: () => void;
   showBackButton?: boolean;
@@ -48,6 +51,7 @@ export function ChatThread({
   conversationMembers = [],
   onReact,
   onRemoveReaction,
+  highlightMessageId,
   currentPlayer,
   conversationName,
   onBack,
@@ -57,6 +61,29 @@ export function ChatThread({
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(messages.length);
   const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
+  const [fullPickerMessageId, setFullPickerMessageId] = useState<string | null>(null);
+
+  // Hover tooltip (desktop)
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Bottom sheet (mobile)
+  const [sheetMessage, setSheetMessage] = useState<Message | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const handleMouseEnter = (msgId: string) => {
+    hoverTimeoutRef.current = setTimeout(() => setHoveredMessageId(msgId), 500);
+  };
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setHoveredMessageId(null);
+  };
+  const handleTouchStart = (msg: Message) => {
+    longPressTimerRef.current = setTimeout(() => setSheetMessage(msg), 300);
+  };
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+  };
 
   useEffect(() => {
     // Auto-scroll on new messages
@@ -69,31 +96,66 @@ export function ChatThread({
     prevCountRef.current = messages.length;
   }, [messages.length]);
 
+  // Scroll to highlighted message
+  useEffect(() => {
+    if (highlightMessageId && scrollRef.current) {
+      const el = scrollRef.current.querySelector(`[data-msg-id="${highlightMessageId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [highlightMessageId, messages]);
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border bg-surface px-4 py-3">
-        {showBackButton && onBack && (
-          <button
-            onClick={onBack}
-            className="min-h-[44px] min-w-[44px] rounded text-gray-400 transition-colors hover:text-white"
-          >
-            &#8592;
-          </button>
-        )}
-        <h2 className="flex-1 font-cinzel text-lg font-bold text-gold">
-          {conversationName}
-        </h2>
-        {onTogglePinboard && (
-          <button
-            onClick={onTogglePinboard}
-            className="min-h-[44px] min-w-[44px] rounded px-2 text-gray-400 transition-colors hover:text-gold"
-            title="Pinboard"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </button>
+      <div className="border-b border-border bg-surface px-4 py-3">
+        <div className="flex items-center gap-3">
+          {showBackButton && onBack && (
+            <button
+              onClick={onBack}
+              className="min-h-[44px] min-w-[44px] rounded text-gray-400 transition-colors hover:text-white"
+            >
+              &#8592;
+            </button>
+          )}
+          <h2 className="flex-1 font-cinzel text-lg font-bold text-gold">
+            {conversationName}
+          </h2>
+          {onTogglePinboard && (
+            <button
+              onClick={onTogglePinboard}
+              className="min-h-[44px] min-w-[44px] rounded px-2 text-gray-400 transition-colors hover:text-gold"
+              title="Pinboard"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {/* Group member chips */}
+        {conversationMembers.length > 2 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {conversationMembers.slice(0, 4).map((name) => (
+              <span
+                key={name}
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                style={{
+                  color: getPlayerColor(name),
+                  backgroundColor: `${getPlayerColor(name)}15`,
+                  border: `1px solid ${getPlayerColor(name)}30`,
+                }}
+              >
+                {getPlayerShort(name)}
+              </span>
+            ))}
+            {conversationMembers.length > 4 && (
+              <span className="rounded-full bg-surface-light px-2 py-0.5 text-[10px] text-gray-500">
+                +{conversationMembers.length - 4} more
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -112,8 +174,66 @@ export function ChatThread({
               return (
                 <div
                   key={msg.id}
-                  className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                  data-msg-id={msg.id}
+                  className={`relative flex ${isOwn ? "justify-end" : "justify-start"} ${
+                    highlightMessageId === msg.id
+                      ? "animate-pulse rounded ring-2 ring-gold/50"
+                      : ""
+                  }`}
+                  onMouseEnter={() => handleMouseEnter(msg.id)}
+                  onMouseLeave={handleMouseLeave}
+                  onTouchStart={() => handleTouchStart(msg)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchEnd}
                 >
+                  {/* Desktop hover tooltip */}
+                  {hoveredMessageId === msg.id && (
+                    <div
+                      className={`pointer-events-none absolute z-50 hidden w-64 rounded-lg border border-border bg-[#1a1a2e] p-3 shadow-xl md:block ${
+                        isOwn ? "right-0" : "left-0"
+                      } bottom-full mb-2`}
+                    >
+                      <p className="mb-1 text-[10px] text-gray-400">
+                        {new Date(msg.createdAt).toLocaleString("en-US", {
+                          month: "long", day: "numeric", year: "numeric",
+                          hour: "numeric", minute: "2-digit", second: "2-digit",
+                        })}
+                      </p>
+                      {conversationMembers.length > 0 && (() => {
+                        const msgTime = new Date(msg.createdAt).getTime();
+                        const others = conversationMembers.filter((m) => m !== msg.from);
+                        const readers = others.filter((m) => {
+                          const t = readReceipts[m];
+                          return t && new Date(t).getTime() > msgTime;
+                        });
+                        const unread = others.filter((m) => !readers.includes(m));
+                        return (
+                          <div className="mb-1">
+                            {readers.map((name) => (
+                              <p key={name} className="text-[10px]">
+                                <span style={{ color: getPlayerColor(name) }} className="font-bold">{name}</span>
+                                <span className="text-gray-600"> — {new Date(readReceipts[name]).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                              </p>
+                            ))}
+                            {unread.length > 0 && (
+                              <p className="text-[10px] text-gray-600">Not read by: {unread.join(", ")}</p>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {msg.reactions && msg.reactions.length > 0 && (
+                        <div className="border-t border-gray-700 pt-1">
+                          {msg.reactions.map((r, i) => (
+                            <span key={i} className="text-[10px]">
+                              {r.emoji}{" "}
+                              <span style={{ color: getPlayerColor(r.playerName) }} className="font-bold">{r.playerName}</span>
+                              {i < msg.reactions!.length - 1 && ", "}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div
                     className={`max-w-[80%] rounded-lg px-3 py-2 ${
                       isOwn
@@ -255,6 +375,19 @@ export function ChatThread({
                           playerName={currentPlayer}
                           onSelect={(emoji) => onReact(msg.id, emoji)}
                           onClose={() => setPickerMessageId(null)}
+                          onOpenFullPicker={() => {
+                            setPickerMessageId(null);
+                            setFullPickerMessageId(msg.id);
+                          }}
+                        />
+                      </div>
+                    )}
+                    {/* Full emoji picker */}
+                    {fullPickerMessageId === msg.id && onReact && (
+                      <div className="mt-1">
+                        <FullEmojiPicker
+                          onSelect={(emoji) => onReact(msg.id, emoji)}
+                          onClose={() => setFullPickerMessageId(null)}
                         />
                       </div>
                     )}
@@ -265,6 +398,18 @@ export function ChatThread({
           </div>
         )}
       </div>
+
+      {/* Mobile bottom sheet */}
+      {sheetMessage && onReact && (
+        <MessageDetailSheet
+          message={sheetMessage}
+          currentPlayer={currentPlayer}
+          conversationMembers={conversationMembers}
+          readReceipts={readReceipts}
+          onReact={onReact}
+          onClose={() => setSheetMessage(null)}
+        />
+      )}
     </div>
   );
 }

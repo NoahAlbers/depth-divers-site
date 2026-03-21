@@ -85,6 +85,7 @@ interface FeedMessage {
   body: string;
   tag: string | null;
   createdAt: string;
+  conversationId: string;
   conversationName: string | null;
   conversationType: string;
   conversationMembers: string[];
@@ -93,6 +94,19 @@ interface FeedMessage {
 function LiveMessageFeed({ dmPassword }: { dmPassword: string }) {
   const [messages, setMessages] = useState<FeedMessage[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("dm-feed-collapsed") === "true";
+    }
+    return false;
+  });
+  const [feedHeight, setFeedHeight] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("dm-feed-height");
+      return stored ? Number(stored) : 400;
+    }
+    return 400;
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchFeed = useCallback(async () => {
@@ -139,26 +153,63 @@ function LiveMessageFeed({ dmPassword }: { dmPassword: string }) {
     return `${Math.floor(hrs / 24)}d`;
   }
 
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem("dm-feed-collapsed", String(next));
+  };
+
   return (
     <div className="rounded-lg border border-border bg-surface">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2">
+      <button
+        onClick={toggleCollapsed}
+        className="flex w-full items-center justify-between border-b border-border px-4 py-2 text-left"
+      >
         <h2 className="font-cinzel text-sm font-bold text-gold">
           Live Message Feed
         </h2>
-        <button
-          onClick={() => setAutoScroll(!autoScroll)}
-          className={`rounded px-2 py-0.5 text-[10px] transition-colors ${
-            autoScroll
-              ? "bg-green-900/30 text-green-400"
-              : "bg-gray-700 text-gray-400"
-          }`}
-        >
-          {autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF"}
-        </button>
-      </div>
+        <div className="flex items-center gap-2">
+          {!collapsed && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setAutoScroll(!autoScroll);
+              }}
+              className={`rounded px-2 py-0.5 text-[10px] transition-colors ${
+                autoScroll
+                  ? "bg-green-900/30 text-green-400"
+                  : "bg-gray-700 text-gray-400"
+              }`}
+            >
+              {autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF"}
+            </span>
+          )}
+          <span
+            className={`text-gray-500 transition-transform ${collapsed ? "" : "rotate-180"}`}
+          >
+            ▼
+          </span>
+        </div>
+      </button>
+      {!collapsed && (
       <div
         ref={scrollRef}
-        className="max-h-[300px] overflow-y-auto p-2"
+        className="overflow-y-auto p-2"
+        style={{
+          height: feedHeight,
+          minHeight: 200,
+          maxHeight: "80vh",
+          resize: "vertical",
+        }}
+        onMouseUp={() => {
+          if (scrollRef.current) {
+            const h = scrollRef.current.offsetHeight;
+            if (h !== feedHeight) {
+              setFeedHeight(h);
+              localStorage.setItem("dm-feed-height", String(h));
+            }
+          }
+        }}
       >
         {messages.length === 0 ? (
           <p className="py-4 text-center text-xs text-gray-600">
@@ -166,9 +217,10 @@ function LiveMessageFeed({ dmPassword }: { dmPassword: string }) {
           </p>
         ) : (
           messages.map((msg) => (
-            <div
+            <a
               key={msg.id}
-              className="flex items-start gap-2 rounded px-2 py-1 text-xs hover:bg-surface-light"
+              href={`/messages?conversation=${msg.conversationId}&message=${msg.id}`}
+              className="flex items-start gap-2 rounded px-2 py-1 text-xs hover:bg-surface-light cursor-pointer"
             >
               <span className="flex-shrink-0 text-gray-600">
                 {relTime(msg.createdAt)}
@@ -198,10 +250,11 @@ function LiveMessageFeed({ dmPassword }: { dmPassword: string }) {
                   {msg.tag}
                 </span>
               )}
-            </div>
+            </a>
           ))
         )}
       </div>
+      )}
     </div>
   );
 }

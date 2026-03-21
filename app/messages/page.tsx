@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { usePlayer } from "@/lib/player-context";
 import { usePolling } from "@/lib/polling";
 import { POLL_INTERVAL_MS } from "@/lib/players";
@@ -54,6 +55,7 @@ interface MessagesResponse {
 
 export default function MessagesPage() {
   const { currentPlayer, effectivePlayer, effectiveIsDM } = usePlayer();
+  const searchParams = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "chat" | "pinboard">(
     "list"
@@ -63,8 +65,24 @@ export default function MessagesPage() {
   const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
   const [convoMembers, setConvoMembers] = useState<string[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
 
   const playerName = effectivePlayer;
+
+  // Handle URL params for deep-linking from DM feed
+  useEffect(() => {
+    const convoParam = searchParams.get("conversation");
+    const msgParam = searchParams.get("message");
+    if (convoParam) {
+      setSelectedId(convoParam);
+      setMobileView("chat");
+      if (msgParam) {
+        setHighlightMessageId(msgParam);
+        // Clear highlight after 3 seconds
+        setTimeout(() => setHighlightMessageId(null), 3000);
+      }
+    }
+  }, [searchParams]);
 
   // Poll conversations list
   const { data: convosData, refetch: refetchConvos } =
@@ -218,6 +236,7 @@ export default function MessagesPage() {
                 conversationMembers={convoMembers}
                 onReact={handleReact}
                 onRemoveReaction={handleRemoveReaction}
+                highlightMessageId={highlightMessageId}
                 onBack={handleBack}
                 onTogglePinboard={() => {
                   setShowPinboard(!showPinboard);
