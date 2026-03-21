@@ -250,7 +250,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex w-full flex-col overflow-hidden" style={{ height: "100dvh", maxHeight: "calc(100vh - 60px)" }}>
+    <div className="flex h-[calc(100vh-80px)] flex-col">
       {mobileView === "list" && (
         <h1 className="mb-2 px-0 font-cinzel text-3xl font-bold text-gold md:mb-0 md:hidden">
           Messages

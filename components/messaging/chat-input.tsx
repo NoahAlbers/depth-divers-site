@@ -39,16 +39,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            onFocus={() => {
-              setTimeout(() => {
-                window.scrollTo(0, 0);
-                // Scroll the message list to bottom
-                document.querySelector(".chat-messages")?.scrollTo({
-                  top: 999999,
-                  behavior: "instant",
-                });
-              }, 300);
-            }}
             placeholder="Type a message..."
             disabled={disabled}
             rows={1}
