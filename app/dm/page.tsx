@@ -71,6 +71,8 @@ function DMDashboard({ dmPassword }: { dmPassword: string }) {
         <SeatingControls headers={headers} />
         <InitiativeControls headers={headers} />
         <GameLauncher headers={headers} />
+        <TimerLauncherSection headers={headers} />
+        <PollLauncherSection headers={headers} />
         <PlaceholderCard title="Session Notes" icon="📝" />
       </div>
     </div>
@@ -814,6 +816,270 @@ function GameLauncher({
 
       {!activeSession && !selectedGame && (
         <p className="text-xs text-gray-500">Select a game to launch.</p>
+      )}
+    </div>
+  );
+}
+
+/* ===== TIMER LAUNCHER ===== */
+
+function TimerLauncherSection({ headers }: { headers: () => Record<string, string> }) {
+  const [label, setLabel] = useState("");
+  const [minutes, setMinutes] = useState(5);
+  const [seconds, setSeconds] = useState(0);
+  const [dramatic, setDramatic] = useState(true);
+  const [activeTimer, setActiveTimer] = useState<{
+    id: string; label: string | null; duration: number; startedAt: string;
+    status: string; pausedAt: string | null; remaining: number | null;
+  } | null>(null);
+
+  const fetchActive = useCallback(async () => {
+    try {
+      const res = await fetch("/api/timers/active");
+      if (res.ok) {
+        const data = await res.json();
+        setActiveTimer(data?.timer || null);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchActive();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchActive();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [fetchActive]);
+
+  const launchTimer = async () => {
+    const duration = minutes * 60 + seconds;
+    if (duration <= 0) return;
+    await fetch("/api/timers", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ label: label || null, duration, dramatic }),
+    });
+    fetchActive();
+  };
+
+  const timerAction = async (action: string, body?: Record<string, unknown>) => {
+    if (!activeTimer) return;
+    await fetch(`/api/timers/${activeTimer.id}/${action}`, {
+      method: "POST",
+      headers: headers(),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    fetchActive();
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <h2 className="mb-3 font-cinzel text-lg font-bold text-gold">
+        ⏱ Countdown Timer
+      </h2>
+
+      {activeTimer ? (
+        <div>
+          <div className="mb-2">
+            {activeTimer.label && (
+              <p className="text-sm font-bold text-gold">{activeTimer.label}</p>
+            )}
+            <p className="text-xs text-gray-400">
+              Status: {activeTimer.status.toUpperCase()} | Duration: {Math.floor(activeTimer.duration / 60)}:{String(activeTimer.duration % 60).padStart(2, "0")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {activeTimer.status === "running" && (
+              <button onClick={() => timerAction("pause")} className="rounded border border-gold/30 px-3 py-1 text-xs text-gold hover:bg-gold/10">Pause</button>
+            )}
+            {activeTimer.status === "paused" && (
+              <button onClick={() => timerAction("resume")} className="rounded bg-gold px-3 py-1 text-xs font-bold text-background">Resume</button>
+            )}
+            <button onClick={() => timerAction("add-time", { seconds: 30 })} className="rounded border border-gray-600 px-2 py-1 text-[10px] text-gray-400">+30s</button>
+            <button onClick={() => timerAction("add-time", { seconds: 60 })} className="rounded border border-gray-600 px-2 py-1 text-[10px] text-gray-400">+1m</button>
+            <button onClick={() => timerAction("end")} className="rounded border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/10">End</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Timer label (optional)"
+            className="rounded border border-gray-700 bg-background px-3 py-1 text-sm text-white placeholder-gray-500"
+          />
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              value={minutes}
+              onChange={(e) => setMinutes(Number(e.target.value) || 0)}
+              className="w-16 rounded border border-gray-700 bg-background px-2 py-1 text-center text-sm text-white"
+            />
+            <span className="text-xs text-gray-500">min</span>
+            <input
+              type="number"
+              min={0}
+              max={59}
+              value={seconds}
+              onChange={(e) => setSeconds(Number(e.target.value) || 0)}
+              className="w-16 rounded border border-gray-700 bg-background px-2 py-1 text-center text-sm text-white"
+            />
+            <span className="text-xs text-gray-500">sec</span>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-gray-400">
+            <input type="checkbox" checked={dramatic} onChange={(e) => setDramatic(e.target.checked)} className="rounded" />
+            Dramatic mode
+          </label>
+          <button onClick={launchTimer} className="rounded bg-gold px-4 py-2 text-sm font-bold text-background hover:bg-[#f0d090]">
+            Launch Timer
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===== POLL LAUNCHER ===== */
+
+function PollLauncherSection({ headers }: { headers: () => Record<string, string> }) {
+  const [question, setQuestion] = useState("");
+  const [options, setOptions] = useState(["", ""]);
+  const [anonymous, setAnonymous] = useState(false);
+  const [showResults, setShowResults] = useState(true);
+  const [activePoll, setActivePoll] = useState<{
+    id: string; question: string; options: string[]; votes: Record<string, number>;
+    anonymous: boolean; showResults: boolean; status: string;
+  } | null>(null);
+
+  const fetchActive = useCallback(async () => {
+    try {
+      const res = await fetch("/api/polls/active");
+      if (res.ok) {
+        const data = await res.json();
+        setActivePoll(data?.id ? data : null);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchActive();
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchActive();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [fetchActive]);
+
+  const launchPoll = async () => {
+    const validOptions = options.filter((o) => o.trim());
+    if (!question.trim() || validOptions.length < 2) return;
+    await fetch("/api/polls", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ question, options: validOptions, anonymous, showResults }),
+    });
+    setQuestion("");
+    setOptions(["", ""]);
+    fetchActive();
+  };
+
+  const closePoll = async () => {
+    if (!activePoll) return;
+    await fetch(`/api/polls/${activePoll.id}/close`, {
+      method: "POST",
+      headers: headers(),
+    });
+    fetchActive();
+  };
+
+  const totalVotes = activePoll ? Object.keys(activePoll.votes).length : 0;
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <h2 className="mb-3 font-cinzel text-lg font-bold text-gold">
+        📊 Quick Poll
+      </h2>
+
+      {activePoll ? (
+        <div>
+          <p className="mb-2 text-sm font-bold text-gold">{activePoll.question}</p>
+          <div className="mb-3 flex flex-col gap-1">
+            {activePoll.options.map((opt: string, i: number) => {
+              const count = Object.values(activePoll.votes).filter((v) => v === i).length;
+              const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+              return (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="w-24 truncate text-gray-300">{opt}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-700">
+                    <div className="h-full bg-gold" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-12 text-right text-gray-500">{count} ({pct}%)</span>
+                </div>
+              );
+            })}
+          </div>
+          {!activePoll.anonymous && (
+            <div className="mb-2 text-[10px] text-gray-600">
+              {Object.entries(activePoll.votes).map(([name, idx]) => (
+                <span key={name} className="mr-2">
+                  <span style={{ color: getPlayerColor(name) }} className="font-bold">{name}</span>
+                  : {activePoll.options[idx as number]}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mb-2 text-[10px] text-gray-600">{totalVotes} voted</p>
+          <button onClick={closePoll} className="rounded border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/10">
+            End Poll
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Poll question"
+            className="rounded border border-gray-700 bg-background px-3 py-1 text-sm text-white placeholder-gray-500"
+          />
+          {options.map((opt, i) => (
+            <input
+              key={i}
+              value={opt}
+              onChange={(e) => {
+                const next = [...options];
+                next[i] = e.target.value;
+                setOptions(next);
+              }}
+              placeholder={`Option ${i + 1}`}
+              className="rounded border border-gray-700 bg-background px-3 py-1 text-sm text-white placeholder-gray-500"
+            />
+          ))}
+          {options.length < 6 && (
+            <button
+              onClick={() => setOptions([...options, ""])}
+              className="text-xs text-gold hover:underline"
+            >
+              + Add option
+            </button>
+          )}
+          <div className="flex gap-4">
+            <label className="flex items-center gap-1 text-xs text-gray-400">
+              <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} className="rounded" />
+              Anonymous
+            </label>
+            <label className="flex items-center gap-1 text-xs text-gray-400">
+              <input type="checkbox" checked={showResults} onChange={(e) => setShowResults(e.target.checked)} className="rounded" />
+              Show results
+            </label>
+          </div>
+          <button
+            onClick={launchPoll}
+            disabled={!question.trim() || options.filter((o) => o.trim()).length < 2}
+            className="rounded bg-gold px-4 py-2 text-sm font-bold text-background hover:bg-[#f0d090] disabled:opacity-50"
+          >
+            Launch Poll
+          </button>
+        </div>
       )}
     </div>
   );

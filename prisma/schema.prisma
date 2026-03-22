@@ -159,3 +159,30 @@ model CharacterSheet {
   skills         String   @default("{}") // JSON: { skillName: { proficient: bool, expertise: bool } }
   updatedAt      DateTime @updatedAt
 }
+
+// --- DM Tools ---
+
+model Timer {
+  id        String    @id @default(cuid())
+  label     String?
+  duration  Int       // total seconds
+  startedAt DateTime
+  pausedAt  DateTime?
+  remaining Int?      // seconds remaining at pause
+  dramatic  Boolean   @default(true)
+  visible   Boolean   @default(true)
+  status    String    @default("running") // running, paused, expired, cancelled
+  createdAt DateTime  @default(now())
+}
+
+model Poll {
+  id          String    @id @default(cuid())
+  question    String
+  options     String    // JSON array of option strings
+  anonymous   Boolean   @default(false)
+  showResults Boolean   @default(true)
+  status      String    @default("active") // active, closed
+  votes       String    @default("{}") // JSON: { playerName: optionIndex }
+  createdAt   DateTime  @default(now())
+  closedAt    DateTime?
+}

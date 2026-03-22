@@ -4,6 +4,9 @@ import { Nav } from "@/components/nav";
 import { PlayerProvider } from "@/lib/player-context";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { PlayerColorsProvider } from "@/lib/player-colors-context";
+import { InstallPrompt } from "@/components/install-prompt";
+import { TimerOverlay } from "@/components/timer-overlay";
+import { PollOverlay } from "@/components/poll-overlay";
 import "./globals.css";
 
 const cinzel = Cinzel({
@@ -21,6 +24,22 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Depth Divers",
   description: "Campaign tools for the party",
+  manifest: "/manifest.json",
+  themeColor: "#e5c07b",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Depth Divers",
+  },
+  icons: {
+    icon: "/icons/icon.svg",
+    apple: "/icons/icon.svg",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+  },
 };
 
 export default function RootLayout({
@@ -38,6 +57,9 @@ export default function RootLayout({
             <ImpersonationBanner />
             <Nav />
             <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+            <TimerOverlay />
+            <PollOverlay />
+            <InstallPrompt />
           </PlayerColorsProvider>
         </PlayerProvider>
       </body>
