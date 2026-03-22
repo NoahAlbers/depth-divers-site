@@ -74,6 +74,58 @@ export const GAMES: GameDefinition[] = [
     category: "reflex",
     defaultSkill: "Perception",
   },
+  {
+    id: "lockpicking",
+    name: "Lockpicking",
+    description:
+      "Navigate a lockpick through the internal mechanism of a lock without touching the walls. Don't break the pick!",
+    icon: "🔐",
+    minPlayers: 1,
+    maxPlayers: 6,
+    defaultTimeLimit: 0,
+    difficulties: ["easy", "medium", "hard"],
+    category: "puzzle",
+    defaultSkill: "Sleight of Hand",
+  },
+  {
+    id: "drinking-contest",
+    name: "Drinking Contest",
+    description:
+      "Match the rhythm to keep drinking! The bar gets blurrier and the mug gets faster. Last one standing wins!",
+    icon: "🍺",
+    minPlayers: 1,
+    maxPlayers: 6,
+    defaultTimeLimit: 0,
+    difficulties: ["easy", "medium", "hard"],
+    category: "rhythm",
+    defaultSkill: undefined, // Uses raw CON
+  },
+  {
+    id: "stealth-sequence",
+    name: "Stealth Sequence",
+    description:
+      "Sneak past patrolling guards in a drow outpost. Move between beats, avoid vision cones. Get caught and the infiltration fails.",
+    icon: "🥷",
+    minPlayers: 1,
+    maxPlayers: 6,
+    defaultTimeLimit: 0,
+    difficulties: ["easy", "medium", "hard"],
+    category: "timing",
+    defaultSkill: "Stealth",
+  },
+  {
+    id: "defuse-the-glyph",
+    name: "Defuse the Glyph",
+    description:
+      "A magical trap is active! Each player sees a different piece of the puzzle. Communicate verbally to disarm it before time runs out!",
+    icon: "💎",
+    minPlayers: 2,
+    maxPlayers: 6,
+    defaultTimeLimit: 180,
+    difficulties: ["easy", "medium", "hard"],
+    category: "cooperative",
+    defaultSkill: "Arcana",
+  },
 ];
 
 export function getGameById(id: string): GameDefinition | undefined {

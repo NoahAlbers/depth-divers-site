@@ -11,6 +11,10 @@ import { RuneEchoes } from "@/components/games/rune-echoes";
 import { GlyphRace } from "@/components/games/glyph-race";
 import { StalactiteStorm } from "@/components/games/stalactite-storm";
 import { SpiderSwat } from "@/components/games/spider-swat";
+import { Lockpicking } from "@/components/games/lockpicking";
+import { DrinkingContest } from "@/components/games/drinking-contest";
+import { StealthSequence } from "@/components/games/stealth-sequence";
+import { DefuseTheGlyph } from "@/components/games/defuse-the-glyph";
 import { useParams } from "next/navigation";
 
 interface GameResult {
@@ -227,6 +231,10 @@ export default function GameSessionPage() {
       {session.gameId === "glyph-race" && <GlyphRace {...gameProps} />}
       {session.gameId === "stalactite-storm" && <StalactiteStorm {...gameProps} />}
       {session.gameId === "spider-swat" && <SpiderSwat {...gameProps} />}
+      {session.gameId === "lockpicking" && <Lockpicking {...gameProps} />}
+      {session.gameId === "drinking-contest" && <DrinkingContest {...gameProps} />}
+      {session.gameId === "stealth-sequence" && <StealthSequence {...gameProps} />}
+      {session.gameId === "defuse-the-glyph" && <DefuseTheGlyph {...gameProps} />}
     </div>
   );
 }
