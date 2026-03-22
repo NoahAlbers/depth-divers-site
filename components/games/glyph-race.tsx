@@ -35,6 +35,7 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
   const [flash, setFlash] = useState<"correct" | "wrong" | "timeout" | null>(null);
   const [finished, setFinished] = useState(false);
   const [skippedRounds, setSkippedRounds] = useState(0);
+  const [slideState, setSlideState] = useState<"in" | "out" | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const advancingRef = useRef(false);
@@ -117,7 +118,12 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
           setFinished(true);
           onComplete(Math.round(newTotal * 10) / 10, { skipped: skippedRounds + 1 });
         } else {
-          setRound(round + 1);
+          setSlideState("out");
+          setTimeout(() => {
+            setRound(round + 1);
+            setSlideState("in");
+            setTimeout(() => setSlideState(null), 200);
+          }, 200);
         }
       }, 800);
     }
@@ -144,7 +150,12 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
             setFinished(true);
             onComplete(Math.round(newTotal * 10) / 10, { skipped: skippedRounds });
           } else {
-            setRound(round + 1);
+            setSlideState("out");
+            setTimeout(() => {
+              setRound(round + 1);
+              setSlideState("in");
+              setTimeout(() => setSlideState(null), 200);
+            }, 200);
           }
         }, 500);
       } else {
@@ -255,7 +266,11 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
 
       {/* Puzzle card */}
       <div
-        className={`w-full rounded-lg border-2 p-5 text-center transition-all ${
+        className={`w-full rounded-lg border-2 p-5 text-center transition-all duration-200 ${
+          slideState === "out" ? "-translate-x-5 opacity-0" :
+          slideState === "in" ? "translate-x-5 opacity-0" :
+          "translate-x-0 opacity-100"
+        } ${
           flash === "correct" ? "border-green-500 bg-green-500/10"
           : flash === "wrong" ? "border-red-500 bg-red-500/10"
           : flash === "timeout" ? "border-orange-500 bg-orange-500/10"
@@ -275,9 +290,19 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
         {/* Prompt */}
         {!flash && (
           <>
-            <div className="whitespace-pre-line font-cinzel text-xl font-bold text-gold">
-              {puzzle.prompt}
-            </div>
+            {puzzle.type === "color-count" && colorCountPhase === "answer" && puzzle.visualData?.targetColor ? (
+              <div className="flex items-center justify-center gap-2 font-cinzel text-xl font-bold text-gold">
+                <span>{puzzle.prompt}</span>
+                <div
+                  className="inline-block h-5 w-5 rounded-full border border-gray-600"
+                  style={{ backgroundColor: puzzle.visualData.targetColor }}
+                />
+              </div>
+            ) : (
+              <div className="whitespace-pre-line font-cinzel text-xl font-bold text-gold">
+                {puzzle.prompt}
+              </div>
+            )}
             {puzzle.hint && <p className="mt-2 text-xs text-gray-500">{puzzle.hint}</p>}
           </>
         )}
@@ -362,22 +387,30 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
 
             {/* Sequence repeat */}
             {puzzle.type === "sequence-repeat" && puzzle.visualData.sequence && (
-              <div className="mt-2 flex justify-center gap-2">
-                {[...new Set(puzzle.visualData.sequence)].map((color, i) => {
-                  const isHighlighted = seqPhase === "showing" && puzzle.visualData!.sequence![seqHighlight] === color;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => seqPhase === "input" && handleSeqTap(color)}
-                      disabled={seqPhase === "showing"}
-                      className={`h-12 w-12 rounded-lg border-2 transition-all ${
-                        isHighlighted ? "border-white scale-110" : "border-gray-700"
-                      } ${seqPhase === "input" ? "hover:scale-105 active:scale-95" : "opacity-70"}`}
-                      style={{ backgroundColor: color }}
-                    />
-                  );
-                })}
-              </div>
+              <>
+                {seqPhase === "showing" && (
+                  <p className="mb-2 text-sm font-bold text-purple-400 animate-pulse">Watch the sequence...</p>
+                )}
+                {seqPhase === "input" && (
+                  <p className="mb-2 text-sm font-bold text-gold">Now repeat it!</p>
+                )}
+                <div className="flex justify-center gap-2">
+                  {[...new Set(puzzle.visualData.sequence)].map((color, i) => {
+                    const isHighlighted = seqPhase === "showing" && puzzle.visualData!.sequence![seqHighlight] === color;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => seqPhase === "input" && handleSeqTap(color)}
+                        disabled={seqPhase === "showing"}
+                        className={`h-14 w-14 rounded-lg border-2 transition-all ${
+                          isHighlighted ? "border-white scale-110" : "border-gray-700"
+                        } ${seqPhase === "input" ? "hover:scale-105 active:scale-95" : "opacity-70"}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    );
+                  })}
+                </div>
+              </>
             )}
             {puzzle.type === "sequence-repeat" && seqPhase === "input" && (
               <div className="mt-2 flex justify-center gap-1">
@@ -407,7 +440,7 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
                     <button
                       key={`${item}-${i}`}
                       onClick={() => handleSortTap(item)}
-                      className="rounded border border-gray-600 bg-background px-4 py-2 text-lg font-bold text-white transition-all hover:border-gold hover:bg-gold/10"
+                      className="min-h-[48px] min-w-[48px] rounded border border-gray-600 bg-background px-4 py-2 text-lg font-bold text-white transition-all hover:border-gold hover:bg-gold/10"
                     >
                       {item}
                     </button>
@@ -421,14 +454,19 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
               <div className="mt-2 flex justify-center gap-4">
                 {[puzzle.visualData.grid, puzzle.visualData.grid2].map((grid, gi) => (
                   <div key={gi}>
-                    <p className="mb-1 text-[9px] text-gray-500">{gi === 0 ? "Original" : "Changed"}</p>
-                    <div className="inline-grid gap-0.5" style={{ gridTemplateColumns: `repeat(${grid[0].length}, 1fr)` }}>
+                    <p className="mb-1 text-[9px] text-gray-500">
+                      {gi === 0 ? "Original" : "👆 Tap the difference"}
+                    </p>
+                    <div
+                      className={`inline-grid gap-0.5 rounded p-0.5 ${gi === 1 ? "border border-gold/40 animate-pulse" : ""}`}
+                      style={{ gridTemplateColumns: `repeat(${grid[0].length}, 1fr)` }}
+                    >
                       {grid.map((row, ri) =>
                         row.map((color, ci) => (
                           <button
                             key={`${ri}-${ci}`}
                             onClick={() => gi === 1 && handleAnswer(`${ri},${ci}`)}
-                            className="h-7 w-7 rounded-sm border border-gray-800 transition-all hover:border-gray-500"
+                            className="h-9 w-9 rounded-sm border border-gray-800 transition-all hover:border-gray-500"
                             style={{ backgroundColor: color }}
                           />
                         ))
@@ -442,19 +480,29 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
             {/* Direction match */}
             {puzzle.type === "direction-match" && puzzle.visualData.arrow && (
               <div className="mt-3">
-                <div className="mb-3 text-5xl">{puzzle.visualData.arrow}</div>
+                <div
+                  className="mb-3 text-6xl font-bold text-gold"
+                  style={{
+                    transform: puzzle.visualData.arrow === "↑" ? "rotate(0deg)" :
+                               puzzle.visualData.arrow === "→" ? "rotate(90deg)" :
+                               puzzle.visualData.arrow === "↓" ? "rotate(180deg)" :
+                               "rotate(270deg)",
+                  }}
+                >
+                  ▲
+                </div>
                 {puzzle.visualData.trickText && (
                   <p className="mb-2 text-sm text-red-400 line-through">{puzzle.visualData.trickText}</p>
                 )}
                 <div className="grid grid-cols-3 gap-1 mx-auto w-fit">
                   <div />
-                  <button onClick={() => handleAnswer("up")} className="h-12 w-12 rounded border border-gray-600 bg-background text-xl font-bold text-white hover:border-gold">↑</button>
+                  <button onClick={() => handleAnswer("up")} className="h-14 w-14 rounded border border-gray-600 bg-background text-xl font-bold text-white hover:border-gold">↑</button>
                   <div />
-                  <button onClick={() => handleAnswer("left")} className="h-12 w-12 rounded border border-gray-600 bg-background text-xl font-bold text-white hover:border-gold">←</button>
+                  <button onClick={() => handleAnswer("left")} className="h-14 w-14 rounded border border-gray-600 bg-background text-xl font-bold text-white hover:border-gold">←</button>
                   <div />
-                  <button onClick={() => handleAnswer("right")} className="h-12 w-12 rounded border border-gray-600 bg-background text-xl font-bold text-white hover:border-gold">→</button>
+                  <button onClick={() => handleAnswer("right")} className="h-14 w-14 rounded border border-gray-600 bg-background text-xl font-bold text-white hover:border-gold">→</button>
                   <div />
-                  <button onClick={() => handleAnswer("down")} className="h-12 w-12 rounded border border-gray-600 bg-background text-xl font-bold text-white hover:border-gold">↓</button>
+                  <button onClick={() => handleAnswer("down")} className="h-14 w-14 rounded border border-gray-600 bg-background text-xl font-bold text-white hover:border-gold">↓</button>
                   <div />
                 </div>
               </div>
@@ -491,15 +539,25 @@ export function GlyphRace({ seed, difficulty, onComplete, config = {} }: GlyphRa
           {/* Multiple choice */}
           {puzzle.inputMode === "choice" && puzzle.options && (
             <div className="grid w-full grid-cols-2 gap-2">
-              {puzzle.options.map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => handleAnswer(opt)}
-                  className="min-h-[48px] rounded border border-gray-700 bg-background px-4 py-3 text-lg font-bold text-white transition-colors hover:border-gold hover:bg-gold/10"
-                >
-                  {opt}
-                </button>
-              ))}
+              {puzzle.options.map((opt) => {
+                const isColor = /^#[0-9a-fA-F]{3,8}$/.test(opt);
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => handleAnswer(opt)}
+                    className="flex min-h-[56px] items-center justify-center rounded border border-gray-700 bg-background px-4 py-3 transition-colors hover:border-gold hover:bg-gold/10"
+                  >
+                    {isColor ? (
+                      <div
+                        className="h-10 w-10 rounded-full border-2 border-gray-600 transition-transform hover:scale-110"
+                        style={{ backgroundColor: opt }}
+                      />
+                    ) : (
+                      <span className="text-lg font-bold text-white">{opt}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </>

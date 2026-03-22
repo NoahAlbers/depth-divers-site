@@ -26,6 +26,7 @@ export interface Puzzle {
     arrow?: string;
     trickText?: string;
     flashDuration?: number;
+    targetColor?: string;
     correctIndex?: number;
     diffRow?: number;
     diffCol?: number;
@@ -305,7 +306,7 @@ function generateColorCount(rng: ReturnType<typeof createRNG>, difficulty: Diffi
     prompt: `How many ${askName.toUpperCase()} dots?`,
     answer: String(answer),
     hint: "Count carefully!",
-    visualData: { grid, flashDuration },
+    visualData: { grid, flashDuration, targetColor: askColor },
   };
 }
 
@@ -366,6 +367,7 @@ function generateSortOrder(rng: ReturnType<typeof createRNG>, difficulty: Diffic
     type: "sort-order", category: "reaction", inputMode: "sort",
     prompt: useLetters ? "Tap in alphabetical order!" : "Tap smallest to largest!",
     answer: sorted.join(","),
+    hint: useLetters ? "Tap in order: A → Z" : "Tap in order: smallest → largest",
     visualData: { items: scrambled },
   };
 }
@@ -476,18 +478,38 @@ const GENERATORS: Record<string, (rng: ReturnType<typeof createRNG>, d: Difficul
   "direction-match": generateDirectionMatch,
 };
 
-function getAvailableTypes(allowedCategories?: string): string[] {
+function getAvailableCategories(allowedCategories?: string): string[] {
   if (!allowedCategories || allowedCategories === "all") {
-    return Object.values(CATEGORY_TYPES).flat();
+    return Object.keys(CATEGORY_TYPES);
   }
-  return CATEGORY_TYPES[allowedCategories] || Object.values(CATEGORY_TYPES).flat();
+  if (CATEGORY_TYPES[allowedCategories]) return [allowedCategories];
+  return Object.keys(CATEGORY_TYPES);
 }
 
-function getPreviousType(seed: number, round: number, difficulty: Difficulty, allowedCategories?: string): string | null {
-  if (round < 0) return null;
-  const rng = createRNG(seed + round * 100);
-  const types = getAvailableTypes(allowedCategories);
-  return types[Math.floor(rng.next() * types.length)];
+/**
+ * Round-robin category assignment: cycles through categories, shuffled each cycle.
+ * Ensures even distribution across categories with no two same-category in a row.
+ */
+function getCategoryForRound(seed: number, round: number, allowedCategories?: string): string {
+  const cats = getAvailableCategories(allowedCategories);
+  if (cats.length === 1) return cats[0];
+
+  const rng = createRNG(seed);
+  const assignments: string[] = [];
+  const shuffled = [...cats];
+
+  for (let i = 0; i <= round; i++) {
+    if (i % shuffled.length === 0) {
+      // Shuffle for this cycle
+      for (let j = shuffled.length - 1; j > 0; j--) {
+        const k = Math.floor(rng.next() * (j + 1));
+        [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+      }
+    }
+    assignments.push(shuffled[i % shuffled.length]);
+  }
+
+  return assignments[round];
 }
 
 export function generatePuzzle(
@@ -497,16 +519,15 @@ export function generatePuzzle(
   allowedCategories?: string
 ): Puzzle {
   const rng = createRNG(seed + round * 100);
-  const availableTypes = getAvailableTypes(allowedCategories);
 
-  // Avoid repeating the same type as the previous round
-  const prevType = round > 0 ? getPreviousType(seed, round - 1, difficulty, allowedCategories) : null;
-  const filtered = availableTypes.filter((t) => t !== prevType);
-  const typePool = filtered.length > 0 ? filtered : availableTypes;
+  // Round-robin: get the assigned category for this round
+  const category = getCategoryForRound(seed, round, allowedCategories);
+  const typesInCategory = CATEGORY_TYPES[category] || Object.values(CATEGORY_TYPES).flat();
 
-  const selectedType = typePool[Math.floor(rng.next() * typePool.length)];
+  // Pick a random type within the category
+  const selectedType = typesInCategory[Math.floor(rng.next() * typesInCategory.length)];
   const gen = GENERATORS[selectedType];
-  if (!gen) return generateQuickMath(rng, difficulty); // fallback
+  if (!gen) return generateQuickMath(rng, difficulty);
 
   return gen(rng, difficulty);
 }
