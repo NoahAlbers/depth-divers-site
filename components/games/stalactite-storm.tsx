@@ -9,8 +9,8 @@ import {
   TICK_RATE,
   GAME_WIDTH,
   GAME_HEIGHT,
-  PLAYER_WIDTH,
   PLAYER_HEIGHT,
+  PLAYER_WIDTH,
   PLAYER_Y,
   type GameState,
   type Obstacle,
@@ -25,16 +25,15 @@ interface StalactiteStormProps {
 
 export function StalactiteStorm({ seed, difficulty, onComplete }: StalactiteStormProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<GameState>(createInitialState());
-  const rngRef = useRef(createRNG(seed));
-  const configRef = useRef(getDifficultyConfig(difficulty));
-  const inputRef = useRef({ targetX: GAME_WIDTH / 2 });
-  const accumulatorRef = useRef(0);
-  const lastTimeRef = useRef(0);
-  const animFrameRef = useRef(0);
-  const completedRef = useRef(false);
   const [displayTime, setDisplayTime] = useState(0);
   const [dead, setDead] = useState(false);
+
+  // Store onComplete in a ref so it doesn't cause the game loop to restart
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  // Store input in a ref — mutated by event handlers, read by game loop
+  const inputRef = useRef({ targetX: GAME_WIDTH / 2 });
 
   const handlePointerMove = useCallback((e: PointerEvent) => {
     const canvas = canvasRef.current;
@@ -45,7 +44,7 @@ export function StalactiteStorm({ seed, difficulty, onComplete }: StalactiteStor
   }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    const step = 18;
+    const step = 20;
     if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
       inputRef.current.targetX = Math.max(0, inputRef.current.targetX - step);
     }
@@ -54,69 +53,75 @@ export function StalactiteStorm({ seed, difficulty, onComplete }: StalactiteStor
     }
   }, []);
 
+  // The game loop effect — only depends on seed and difficulty (stable values)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const ctx = canvas.getContext("2d")!;
+
+    // Initialize game state (all local to this effect, no refs that cause re-runs)
+    let gameState = createInitialState();
+    const rng = createRNG(seed);
+    const config = getDifficultyConfig(difficulty);
+    let accumulator = 0;
+    let lastTime = 0;
+    let animFrame = 0;
+    let completed = false;
+    let displayUpdateCounter = 0;
+
+    // Event listeners
     canvas.addEventListener("pointermove", handlePointerMove);
     canvas.addEventListener("pointerdown", handlePointerMove);
     window.addEventListener("keydown", handleKeyDown);
 
-    stateRef.current = createInitialState();
-    rngRef.current = createRNG(seed);
-    configRef.current = getDifficultyConfig(difficulty);
-    accumulatorRef.current = 0;
-    lastTimeRef.current = 0;
-    completedRef.current = false;
-
-    const ctx = canvas.getContext("2d")!;
-
     function gameLoop(timestamp: number) {
-      if (lastTimeRef.current === 0) {
-        lastTimeRef.current = timestamp;
-        animFrameRef.current = requestAnimationFrame(gameLoop);
+      if (lastTime === 0) {
+        lastTime = timestamp;
+        animFrame = requestAnimationFrame(gameLoop);
         return;
       }
 
-      const delta = Math.min(timestamp - lastTimeRef.current, 100); // cap to prevent spiral
-      lastTimeRef.current = timestamp;
-      accumulatorRef.current += delta;
+      const delta = Math.min(timestamp - lastTime, 100);
+      lastTime = timestamp;
+      accumulator += delta;
 
       // Fixed timestep simulation
-      while (accumulatorRef.current >= TICK_RATE) {
-        stateRef.current = tick(
-          stateRef.current,
-          inputRef.current,
-          rngRef.current,
-          configRef.current
-        );
-        accumulatorRef.current -= TICK_RATE;
+      while (accumulator >= TICK_RATE) {
+        gameState = tick(gameState, inputRef.current, rng, config);
+        accumulator -= TICK_RATE;
 
-        if (!stateRef.current.alive && !completedRef.current) {
-          completedRef.current = true;
-          const finalScore = Math.round(stateRef.current.survivalTime * 10) / 10;
+        if (!gameState.alive && !completed) {
+          completed = true;
+          const finalScore = Math.round(gameState.survivalTime * 10) / 10;
           setDead(true);
           setDisplayTime(finalScore);
-          render(ctx, stateRef.current);
-          setTimeout(() => onComplete(finalScore), 1500);
+          render(ctx, gameState);
+          setTimeout(() => onCompleteRef.current(finalScore), 1500);
           return;
         }
       }
 
-      setDisplayTime(Math.round(stateRef.current.survivalTime * 10) / 10);
-      render(ctx, stateRef.current);
-      animFrameRef.current = requestAnimationFrame(gameLoop);
+      // Update React display time only every ~10 frames to avoid excessive re-renders
+      displayUpdateCounter++;
+      if (displayUpdateCounter >= 10) {
+        displayUpdateCounter = 0;
+        setDisplayTime(Math.round(gameState.survivalTime * 10) / 10);
+      }
+
+      render(ctx, gameState);
+      animFrame = requestAnimationFrame(gameLoop);
     }
 
-    animFrameRef.current = requestAnimationFrame(gameLoop);
+    animFrame = requestAnimationFrame(gameLoop);
 
     return () => {
-      cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(animFrame);
       canvas.removeEventListener("pointermove", handlePointerMove);
       canvas.removeEventListener("pointerdown", handlePointerMove);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [seed, difficulty, onComplete, handlePointerMove, handleKeyDown]);
+  }, [seed, difficulty, handlePointerMove, handleKeyDown]); // NO onComplete here
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -148,7 +153,7 @@ export function StalactiteStorm({ seed, difficulty, onComplete }: StalactiteStor
 }
 
 function render(ctx: CanvasRenderingContext2D, state: GameState) {
-  // Background gradient
+  // Background
   const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
   grad.addColorStop(0, "#080810");
   grad.addColorStop(0.4, "#0d1117");
@@ -156,14 +161,14 @@ function render(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-  // Parallax cave texture (distant layer)
+  // Parallax lines
   ctx.strokeStyle = "#141820";
   ctx.lineWidth = 1;
-  const parallaxOffset = (state.survivalTime * 5) % 40;
+  const offset = (state.survivalTime * 5) % 40;
   for (let x = -20; x < GAME_WIDTH + 20; x += 40) {
     ctx.beginPath();
-    ctx.moveTo(x + parallaxOffset, 0);
-    ctx.lineTo(x + 15 + parallaxOffset, GAME_HEIGHT);
+    ctx.moveTo(x + offset, 0);
+    ctx.lineTo(x + 15 + offset, GAME_HEIGHT);
     ctx.stroke();
   }
 
@@ -180,7 +185,6 @@ function render(ctx: CanvasRenderingContext2D, state: GameState) {
   if (state.alive) {
     renderPlayer(ctx, state.playerX);
   } else {
-    // Death effect
     ctx.fillStyle = "rgba(239, 68, 68, 0.3)";
     ctx.beginPath();
     ctx.arc(state.playerX, PLAYER_Y + PLAYER_HEIGHT / 2, 30, 0, Math.PI * 2);
@@ -198,14 +202,11 @@ function render(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.fillText(`${state.survivalTime.toFixed(1)}s`, 10, 20);
   ctx.fillStyle = "#666";
   ctx.font = "10px monospace";
-  ctx.fillText(`×${state.speedMultiplier.toFixed(1)}`, 10, 34);
+  ctx.fillText(`x${state.speedMultiplier.toFixed(1)}`, 10, 34);
 }
 
 function renderObstacle(ctx: CanvasRenderingContext2D, o: Obstacle) {
-  ctx.save();
-
   if (o.type === "stalactite") {
-    // Pointed rock shape
     ctx.fillStyle = "#3a3050";
     ctx.beginPath();
     ctx.moveTo(o.x - o.width / 2, o.y);
@@ -215,43 +216,36 @@ function renderObstacle(ctx: CanvasRenderingContext2D, o: Obstacle) {
     ctx.lineTo(o.x - o.width / 4, o.y + o.height * 0.7);
     ctx.closePath();
     ctx.fill();
-    // Glow edge
     ctx.strokeStyle = "rgba(198, 120, 221, 0.3)";
     ctx.lineWidth = 1;
     ctx.stroke();
   } else if (o.type === "bolt") {
-    // Glowing energy bolt
+    ctx.save();
     ctx.shadowColor = "#c678dd";
     ctx.shadowBlur = 6;
     ctx.fillStyle = "#c678dd";
     ctx.beginPath();
     ctx.arc(o.x, o.y + o.height / 2, o.width / 2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.restore();
   } else {
-    // Wide cave debris
     ctx.fillStyle = "#2a2a3a";
     ctx.fillRect(o.x - o.width / 2, o.y, o.width, o.height);
     ctx.strokeStyle = "rgba(100, 100, 120, 0.4)";
     ctx.lineWidth = 1;
     ctx.strokeRect(o.x - o.width / 2, o.y, o.width, o.height);
   }
-
-  ctx.restore();
 }
 
 function renderPlayer(ctx: CanvasRenderingContext2D, px: number) {
-  // Head
   ctx.fillStyle = "#e5c07b";
   ctx.beginPath();
   ctx.arc(px, PLAYER_Y + 7, 7, 0, Math.PI * 2);
   ctx.fill();
 
-  // Body
   ctx.fillStyle = "#d19a66";
   ctx.fillRect(px - 5, PLAYER_Y + 14, 10, 14);
 
-  // Cloak
   ctx.fillStyle = "rgba(97, 175, 239, 0.4)";
   ctx.beginPath();
   ctx.moveTo(px - PLAYER_WIDTH / 2 + 2, PLAYER_Y + 12);
@@ -261,7 +255,6 @@ function renderPlayer(ctx: CanvasRenderingContext2D, px: number) {
   ctx.closePath();
   ctx.fill();
 
-  // Legs
   ctx.fillStyle = "#888";
   ctx.fillRect(px - 4, PLAYER_Y + 28, 3, 8);
   ctx.fillRect(px + 1, PLAYER_Y + 28, 3, 8);
