@@ -2,6 +2,7 @@
 
 import { PLAYERS, getPlayerColor } from "@/lib/players";
 import { getGameById } from "@/lib/games/registry";
+import { GameInstructions } from "./game-instructions";
 
 interface GameLobbyProps {
   gameId: string;
@@ -27,20 +28,36 @@ export function GameLobby({
 
   return (
     <div className="mx-auto max-w-lg">
-      <div className="rounded-lg border border-border bg-surface p-6 text-center">
-        <div className="mb-3 text-5xl">{game?.icon || "🎮"}</div>
-        <h2 className="mb-1 font-cinzel text-2xl font-bold text-gold">
-          {game?.name || gameId}
-        </h2>
-        <p className="mb-4 text-sm text-gray-400">{game?.description}</p>
+      <div className="rounded-lg border border-border bg-surface p-6">
+        {/* Header */}
+        <div className="mb-4 text-center">
+          <div className="mb-3 text-5xl">{game?.icon || "🎮"}</div>
+          <h2 className="mb-1 font-cinzel text-2xl font-bold text-gold">
+            {game?.name || gameId}
+          </h2>
+          <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+            {game?.category && <span className="capitalize">{game.category}</span>}
+            {game?.estimatedTime && <span>| {game.estimatedTime}</span>}
+            {game?.skillDisplay && <span>| {game.skillDisplay}</span>}
+          </div>
 
-        <div className="mb-6 inline-block rounded bg-surface-light px-3 py-1 text-xs font-bold uppercase text-gray-300">
-          {difficulty}
+          <div className="mt-3 inline-block rounded bg-surface-light px-3 py-1 text-xs font-bold uppercase text-gray-300">
+            {difficulty}
+          </div>
+        </div>
+
+        {/* Instructions */}
+        <div className="mb-4 rounded border border-gray-700 bg-background/30 p-4 text-left">
+          <GameInstructions
+            gameId={gameId}
+            difficulty={difficulty}
+            playerName={isDM ? undefined : currentPlayer}
+          />
         </div>
 
         {/* Player list */}
-        <div className="mb-6">
-          <h3 className="mb-2 text-sm font-bold text-gray-400">Players</h3>
+        <div className="mb-4">
+          <h3 className="mb-2 text-center text-sm font-bold text-gray-400">Players</h3>
           <div className="flex flex-col gap-2">
             {PLAYERS.map((p) => {
               const joined = players.includes(p.name);
@@ -85,7 +102,7 @@ export function GameLobby({
             </button>
           )}
           {!isDM && hasJoined && (
-            <p className="text-sm text-green-400">
+            <p className="text-center text-sm text-green-400">
               You&apos;re in! Waiting for DM to start...
             </p>
           )}

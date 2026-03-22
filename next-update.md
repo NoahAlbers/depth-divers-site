@@ -1,219 +1,193 @@
-# Feature Request: Game Retry in Launcher, Arcane Conduit Remake, DM Launch Settings
+# Feature Request: Game Lobby Instructions & Arcane Conduit Tuning
 
 **Repo**: https://github.com/NoahAlbers/depth-divers-site
 
 ---
 
-## 1. Retry Requests Visible in Game Launcher
+## 1. Game Lobby — "How to Play" Instructions Screen
 
-When a player requests a retry for a game, the request should be surfaced in the DM's Game Launcher (in the DM Area), not buried in notifications.
+Before every game starts, after players join the lobby and before the DM hits "Start," each player should see a **"How to Play" instructions screen** on their device. This screen teaches them the game before they're thrown into it.
 
-### Active Game Session View
+### Layout
 
-When a game session is finished and the DM views it in the Game Launcher or game history, show a **"Retry Requests"** section:
+When a player joins a game lobby, their screen shows:
 
-- List each pending retry request with:
-  - Player name (in their color)
-  - Their current score
-  - When they requested the retry
-  - Two buttons: **"Approve"** (green) and **"Deny"** (red)
-- Approving clears that player's result and allows them to play again
-- Denying dismisses the request and notifies the player
-- If there are no pending requests, this section is hidden
+```
+┌──────────────────────────────────┐
+│  [Game Icon]  ARCANE CONDUIT     │
+│  Category: Puzzle | ~2-5 min     │
+├──────────────────────────────────┤
+│                                  │
+│  HOW TO PLAY                     │
+│                                  │
+│  [Visual diagrams / examples]    │
+│  [Step-by-step rules]            │
+│                                  │
+│  YOUR STAT BONUS                 │
+│  [Skill info + their bonus]      │
+│                                  │
+├──────────────────────────────────┤
+│  Waiting for DM to start...      │
+│  Players ready: 4/6              │
+│  [✓ Ready]                       │
+└──────────────────────────────────┘
+```
 
-### Game Launcher Dashboard
+### Contents (Per Game)
 
-At the top of the Game Launcher section (before the game selection grid), show a **notification bar** if there are any pending retry requests across ANY game session:
+Each game has a custom instructions screen with:
 
-- "🔄 2 retry requests pending" — clickable, expands to show which players requested retries for which games
-- This ensures the DM doesn't miss retry requests even if they're not actively looking at a specific game session
+1. **Game name, icon, and category** at the top
+2. **Goal**: One sentence explaining what they're trying to do. Bold and clear.
+3. **How it works**: 3-5 bullet points explaining the core mechanic. Keep it short — players won't read paragraphs.
+4. **Visual guide**: Game-specific diagrams or illustrations showing key concepts. This is the most important part — show, don't tell.
+5. **Scoring**: How they earn points / how the winner is determined.
+6. **Stat influence**: Which skill/ability affects their difficulty, what their current bonus is, and what it does for them. Example: "Your Arcana bonus (+5) gives you a slightly longer setup time and an extra piece in the queue."
+7. **Difficulty**: The current difficulty setting and what it means for this game.
 
-### Push Notification to DM
+### Arcane Conduit Instructions (Example)
 
-When a player submits a retry request, send a push notification to the DM: "[Player Name] is requesting a retry for [Game Name]"
+**Goal:** Build a pipeline of arcane conduits to channel magical energy as far as possible before it overflows.
+
+**How it works:**
+- Pipe pieces appear in a queue on the left. Tap any cell on the grid to place the next piece.
+- After a short delay, arcane energy begins flowing from the **source crystal** (purple diamond ◆).
+- The energy flows through connected pipes. Keep building ahead of it!
+- If the energy reaches an open pipe end with nowhere to go — overflow. Game over.
+- Reach the minimum segment count to succeed. More segments = more points.
+
+**Visual guide:**
+- Show all 7 pipe types with labels: "Straight ═", "Corner ╗", "Cross ╬ (bonus points!)"
+- Show the source crystal icon with an arrow indicating flow direction: "Energy flows FROM here"
+- Show the end crystal icon (if Hard): "Energy must reach HERE"
+- Show a mini example of 4-5 connected pipes with arrows showing flow direction
+- Show what "replacing" a pipe looks like: "Tap an unused pipe to replace it (-1 point penalty)"
+
+**Scoring:** +1 per segment, +3 per cross used twice, -1 per replaced pipe. Reach [X] segments to complete.
+
+**Your stat bonus:** "Arcana (+5) → Longer setup delay before energy starts flowing, extra queue visibility"
+
+### Instructions for Other Games
+
+Each game needs its own instructions screen. Key visual elements per game:
+
+**Rune Echoes:** Show the rune grid, an example flash sequence with arrows, and "repeat the pattern"
+
+**Glyph Race:** Show example puzzle types (math cipher, pattern match) with a sample and solution
+
+**Stalactite Storm:** Show the player character, falling obstacles, and left/right movement controls
+
+**Spider Swat:** Show spider types with point values, especially highlight the mushroom penalty
+
+**Lockpicking:** Show the maze, the pick dot, walls, and the "3 strikes" mechanic
+
+**Stealth Sequence:** Show the grid, a guard with vision cone, the beat indicator, and safe vs dangerous cells
+
+**Drinking Contest:** Show the oscillating marker, the sweet spot zone, and what happens as rounds progress
+
+**Defuse the Glyph:** Explain that each player sees different info, they must talk to solve it, and show a simplified example of how clues connect
+
+**Underdark Telephone:** Show the write → draw → write → draw cycle with a funny example
+
+### Implementation
+
+- Create a `GameInstructions` component that takes a `gameId` and renders the appropriate instructions
+- Each game's instructions are defined as a config object with text, visual elements, and stat info
+- The visual guides can be simple inline SVGs, styled divs, or small canvas renders — they don't need to be elaborate, just clear
+- The instructions screen is shown in the game lobby view (`/games/[sessionId]`) before the DM starts the game
+- Players can scroll through the instructions while waiting
+- Once the DM hits "Start," the instructions screen transitions to the actual game
 
 ---
 
-## 2. Arcane Conduit — Complete Remake (Pipe Dream Style)
+## 2. Arcane Conduit — Tuning Fixes
 
-### Overview
+The current Arcane Conduit has several playability issues based on testing. Apply these fixes:
 
-Completely rebuild Arcane Conduit to match the gameplay of **Pipe Dream / Pipe Mania** — a real-time pipe placement game where the player places randomly queued pipe pieces on a grid before the flowing arcane energy reaches an open end.
+### 2a. Flow Starts Way Too Fast
 
-This is a fundamentally different game from the current "rotate static pipes" version. The current version should be entirely replaced.
+The initial delay before flow starts is too short, especially for players who've never played before. They barely have time to understand the grid before energy is flowing.
 
-### Core Mechanic
+**Fix — Increase initial delays significantly:**
+- Easy: **15 seconds** (was 8s)
+- Medium: **10 seconds** (was 5s)  
+- Hard: **6 seconds** (was 3s)
 
-- The player is presented with a **grid** (size varies by difficulty)
-- Somewhere on the grid is a **source crystal** — arcane energy will begin flowing from this point after a short delay
-- The player receives **random pipe pieces** from a queue/dispenser (visible: next 4-5 upcoming pieces)
-- The player **places pipe pieces on empty grid cells** by tapping/clicking a cell — the next piece from the queue is placed there
-- The arcane energy (the "flow") begins after the initial delay and flows through connected pipe segments at a steady speed
-- The player must keep building the pipeline ahead of the flow to prevent it from reaching an open/dead end
-- If the flow reaches a pipe opening that doesn't connect to another pipe → the run ends
-- The goal: get the flow through as many pipe segments as possible. Each segment the flow passes through = 1 point. A **minimum segment count** must be reached to "succeed" (pass the level/round)
+Additionally, add a **visual countdown** that's prominent on screen during the delay:
+- Large text in the center of the grid: "FLOW STARTS IN 12..." counting down
+- The text should pulse and change color in the last 3 seconds (gold → orange → red)
+- This gives players a clear sense of urgency and how much prep time they have left
 
-### Pipe Pieces (7 Types)
+### 2b. Flow Speed Too Fast in Early Segments
 
-1. **Straight Horizontal**: `═` — flow passes left↔right
-2. **Straight Vertical**: `║` — flow passes up↔down
-3. **Corner Down-Right**: `╔` — flow turns from top→right or left→down
-4. **Corner Down-Left**: `╗` — flow turns from top→left or right→down
-5. **Corner Up-Right**: `╚` — flow turns from bottom→right or left→up
-6. **Corner Up-Left**: `╝` — flow turns from bottom→left or right→up
-7. **Cross**: `╬` — flow passes straight through in both directions (horizontal AND vertical). If the flow enters from the left, it exits right. The cross can be used twice (once horizontally, once vertically). Crossing earns bonus points.
+Even after the delay, the flow moves too quickly for new players to build ahead of it.
 
-Pieces are randomly generated using the session seed. Each piece has roughly equal probability, except crosses which are slightly rarer (~8% instead of ~14%).
+**Fix — Slower initial flow speed, gradual ramp:**
+- Easy: **3.0 seconds** per segment for the first 5 segments, then gradually speed up to 2.0s by segment 15
+- Medium: **2.5 seconds** per segment for the first 5 segments, ramping to 1.5s by segment 15
+- Hard: **2.0 seconds** per segment for the first 3 segments, ramping to 1.0s by segment 12
 
-### Placement Rules
-
-- Tap/click any empty cell on the grid → the next piece from the queue is placed there
-- **Replacing a piece**: If the player places a piece on a cell that already has an UNUSED pipe (flow hasn't reached it yet), the old piece is replaced with the new one. This costs a small score penalty (-1 point) and a brief delay before the next piece can be placed.
-- **Cannot replace a piece that flow has already entered** — once the arcane energy is in a pipe, it's locked
-- Pieces can be placed anywhere on the grid, not just adjacent to existing pieces — this allows pre-building paths ahead of the flow
-
-### Flow Mechanics
-
-- **Initial delay**: After the game starts, the flow doesn't begin immediately. The player has time to start laying pipes:
-  - Easy: 8 seconds delay
-  - Medium: 5 seconds delay
-  - Hard: 3 seconds delay
-- **Flow speed**: The flow moves through one pipe segment every:
-  - Easy: 2.0 seconds
-  - Medium: 1.5 seconds
-  - Hard: 1.0 seconds
-- Flow speed gradually increases over time (2% faster every 5 segments)
-- **Flow direction**: The flow enters a pipe from one side and exits based on the pipe type. If it exits into an empty cell or a pipe that doesn't accept flow from that direction → game over
-- **Cross bonus**: When the flow passes through a cross piece for the second time (from the perpendicular direction), award +3 bonus points
-- **Visual**: The flow should visually animate through the pipes — a glowing arcane energy that fills each pipe segment progressively (not instantly). Think of liquid flowing through transparent tubes.
-
-### Special Tiles (Medium and Hard)
-
-- **Blocked cells** (Medium+): Some grid cells are walls/obstacles that cannot have pipes placed on them. These force the player to route around them.
-- **Reservoir** (Hard): A special tile pre-placed on the grid that slows the flow to half speed while passing through it. Strategic to route through for extra building time.
-- **End crystal** (Hard): A target endpoint on the grid. The flow MUST reach this crystal to succeed. Reaching the minimum segment count isn't enough — the path must terminate at the end crystal. This adds a directional challenge.
-
-### Multi-Round Support
-
-The DM can configure the number of **rounds** when launching:
-
-- **1 round** (default): Single game, highest score wins
-- **3 rounds**: Three consecutive games. Total score across all rounds determines the winner. Each round can have a different grid layout (different seed per round, but all players share the same seed per round).
-- **5 rounds**: Five consecutive games. Highest total wins.
-- Between rounds: show a brief scoreboard (5 seconds), then auto-advance to the next round
-- The grid layout, source position, and blocked cells change each round (derived from seed + round number)
-
-### Scoring
-
-- **+1 point** per pipe segment the flow passes through
-- **+3 bonus** for each cross piece used twice (flow passes through both directions)
-- **-1 penalty** for replacing an unused pipe piece
-- **+5 bonus** for reaching the end crystal (Hard difficulty)
-- **+10 bonus** for using every cell on the grid (rare, massive achievement)
-- If the player doesn't reach the minimum segment count → their score is recorded but flagged as "incomplete"
-
-**Minimum segment count:**
-- Easy: 10 segments
-- Medium: 16 segments
-- Hard: 22 segments
-
-### Solvability Checks
-
-Since pieces are random, it's theoretically possible to get an unsolvable sequence. Mitigate this:
-
-- **Queue look-ahead**: The player can see the next 5 pieces. This gives them planning ability.
-- **Guaranteed useful pieces**: The random generation algorithm ensures that within every 7 consecutive pieces, at least one of each basic direction (horizontal, vertical, and at least 2 different corners) appears. This prevents long streaks of unusable pieces.
-- **Replace mechanic**: The ability to overwrite unused pieces means the player can always "dump" a bad piece on an unused cell and wait for a better one.
-- **For Hard difficulty with end crystal**: The seed-based level generation must verify that a valid path EXISTS from the source to the end crystal, considering the blocked cells. If no valid path exists, regenerate with an incremented seed.
-
-### Grid Size
-
-- **Easy**: 7x7 grid
-- **Medium**: 9x9 grid  
-- **Hard**: 10x10 grid
-
-### Controls
-
-- **Mobile**: Tap a cell to place the next pipe piece there. The queue is displayed vertically on the side of the grid.
-- **Desktop**: Click a cell. Alternatively, use the mouse to hover over a cell (shows a ghost preview of the next piece) and click to place.
-- The next piece in the queue should be highlighted/enlarged so the player always knows what they're about to place
-
-### DM Launch Settings
-
-When launching Arcane Conduit, the DM can configure:
-
-- **Difficulty**: Easy / Medium / Hard
-- **Rounds**: 1 / 3 / 5
-- **Time limit** (optional): 0 (no limit, play until flow ends) / 60s / 120s / 180s — if set, the game ends when time runs out regardless of flow state. Score = segments filled at that point.
-- **Skill override**: Default INT / Arcana
-
-### Stat Influence (INT / Arcana)
-
-- Higher bonus → initial delay before flow starts is slightly longer (+0.3s per bonus point)
-- Higher bonus → flow speed is slightly slower (multiplied by difficulty modifier)
-- Higher bonus → queue shows one extra piece (6 instead of 5)
-
-### Visuals
-
-- **Grid**: Dark stone floor with carved channels where pipes will sit
-- **Pipe pieces**: Metallic/crystalline tubes with a slight glow on their edges
-- **Flow**: Bright arcane energy (gold/purple gradient) that visually fills each pipe segment as it flows through. The flow should animate smoothly — not jump from segment to segment but visually travel through.
-- **Source crystal**: Pulsing gold/purple gem on the grid. Energy emanates from it.
-- **End crystal** (Hard): Similar gem but a different color (blue/silver) pulsing as a target.
-- **Queue/dispenser**: Displayed as a vertical column of upcoming pieces on the left (or right) side of the grid. The next piece is larger/highlighted.
-- **Blocked cells**: Cracked dark stone or rubble — clearly different from empty cells.
-- **Reservoir**: A wider, glowing pool section — visually distinct.
-- **Score display**: Top of screen, showing current segment count, target count, and bonus points.
-- **Flow warning**: When the flow is 2-3 segments away from an open end, the open end flashes red to warn the player they need to extend the path.
-
----
-
-## 3. DM Launch Settings — Global Improvements
-
-For ALL games (not just Arcane Conduit), ensure the DM Game Launcher configuration screen includes:
-
-### Standard Settings (Every Game)
-
-- **Difficulty**: Easy / Medium / Hard — with a description of what changes per difficulty for that specific game
-- **Skill override**: Dropdown of all 18 skills + 6 raw ability scores. Defaults to the game's standard mapping. Include a tooltip: "This affects difficulty scaling based on players' character sheets."
-
-### Game-Specific Settings
-
-Each game should expose its unique configuration options. Compile all of these in the launcher:
-
-| Game | Custom Settings |
-|------|----------------|
-| **Arcane Conduit** | Rounds (1/3/5), Time limit (none/60s/120s/180s) |
-| **Rune Echoes** | Starting sequence length (3/4/5), Flash speed override |
-| **Glyph Race** | Number of puzzles (3/5/7), Puzzle types to include (checkboxes) |
-| **Stalactite Storm** | Starting speed (slow/normal/fast) |
-| **Spider Swat** | Duration (15s/20s/30s), Include penalty mushrooms (yes/no) |
-| **Lockpicking** | Timer (none/30s/60s/90s), Moving pins (yes/no) |
-| **Stealth Sequence** | Grid size override, Guard count override |
-| **Drinking Contest** | Starting round (1/5/10 — skip easy rounds for experienced players) |
-| **Defuse the Glyph** | Timer (2min/3min/5min/8min), Number of nodes (3/4/5/6) |
-| **Underdark Telephone** | Prompt mode (DM/auto/player), Drawing time (30s/45s/60s/90s), Writing time (15s/20s/30s/45s), Rounds (auto/manual number) |
-
-### Settings Preview
-
-After configuring, before launching, show a **preview summary**:
-
-```
-Arcane Conduit — Medium Difficulty
-Rounds: 3
-Time Limit: None
-Skill: INT / Arcana
-Players will receive random pipe pieces and must build 
-a path for arcane energy before it overflows.
-[Launch Game]  [Back]
+Use a smooth interpolation rather than a sudden jump:
+```typescript
+function getFlowSpeed(difficulty: string, segmentCount: number): number {
+  const configs = {
+    easy: { start: 3.0, end: 1.8, rampSegments: 15 },
+    medium: { start: 2.5, end: 1.3, rampSegments: 15 },
+    hard: { start: 2.0, end: 0.8, rampSegments: 12 },
+  };
+  const c = configs[difficulty];
+  const t = Math.min(segmentCount / c.rampSegments, 1);
+  return c.start + (c.end - c.start) * t; // Linear interpolation
+}
 ```
 
-This gives the DM a final confirmation before launching.
+### 2c. Source and End Crystals Not Obvious Enough
+
+Players don't immediately understand where energy flows from or where it needs to go.
+
+**Fix — Make source and destination much more visually prominent:**
+
+**Source crystal:**
+- Larger pulsing animation (scale 1.0 → 1.2 → 1.0, repeating)
+- Radiating particle effect — small glowing dots emanating outward from the crystal
+- A clear **arrow** pointing in the flow direction, extending from the crystal into the adjacent cell
+- Label text above or below: "START" in small purple text
+- The source cell's background should have a faint purple glow
+
+**End crystal (Hard difficulty):**
+- Same pulsing treatment but in blue
+- Radiating particles in blue
+- Label: "END" in small blue text  
+- The end cell's background should have a faint blue glow
+- A subtle dotted line or breadcrumb trail could hint at the general direction (not the exact path) from source to end
+
+**First-time hint:**
+- On the very first beat (before flow starts), briefly flash the cells adjacent to the source crystal that could receive flow, with a pulsing highlight and text: "Build pipes starting here →"
+- This disappears after 3 seconds or when the player places their first pipe
+
+### 2d. Queue Not Obvious Enough
+
+The queue on the left side is easy to miss, especially on mobile.
+
+**Fix:**
+- The next piece in the queue should be **larger** and more prominently highlighted (current implementation does this but increase the size differential — next piece should be ~80% of cell size, others ~40%)
+- Add a small animated arrow pointing from the next piece toward the grid: "Place this →"
+- The queue label "NEXT" should be more prominent — slightly larger font, gold color
+- On mobile, consider placing the queue **below** the grid instead of to the left (since vertical space is more available than horizontal on phones). Detect orientation/screen width and adjust layout.
+
+### 2e. Replacing Pipes Not Discoverable
+
+Players don't realize they can overwrite unused pipes.
+
+**Fix:**
+- In the instructions screen (Section 1), explicitly show this mechanic with a visual
+- When a player taps a cell that already has an unused pipe, show a brief toast/hint the first time: "Pipe replaced! (-1 point)" — only show this hint once per game session
+- The replaced pipe should have a brief visual effect (the old pipe fades out, new pipe fades in) to make the replacement feel intentional, not like a misclick
 
 ---
 
 ## Implementation Priority
 
-1. **Retry requests in Game Launcher** — straightforward UI addition
-2. **DM launch settings improvements** — config screen polish for all games
-3. **Arcane Conduit remake** — complete rebuild with Pipe Dream mechanics
+1. **Arcane Conduit tuning** (2a-2e) — immediate playability improvements
+2. **Game lobby instructions screen** — component structure + Arcane Conduit instructions first
+3. **Instructions for remaining games** — fill in each game's instructions using the same component

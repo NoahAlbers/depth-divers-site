@@ -67,6 +67,7 @@ export interface FlowHead {
 export interface ArcaneConduitState {
   grid: PipeCell[][];
   gridSize: number;
+  difficulty: string;
   sourcePos: [number, number];
   sourceExitDir: number;
   endCrystalPos: [number, number] | null;
@@ -87,15 +88,30 @@ export interface ArcaneConduitState {
   reachedEndCrystal: boolean;
   minSegments: number;
   replaceCooldown: number;
+  lastReplaced: [number, number] | null;
 }
 
 // ===== DIFFICULTY PARAMS =====
 
 const DIFFICULTY_PARAMS = {
-  easy:   { gridSize: 7,  flowDelay: 8,  flowSpeed: 2.0, minSegments: 10, blockedCells: 0,  hasReservoir: false, hasEndCrystal: false },
-  medium: { gridSize: 9,  flowDelay: 5,  flowSpeed: 1.5, minSegments: 16, blockedCells: 4,  hasReservoir: false, hasEndCrystal: false },
-  hard:   { gridSize: 10, flowDelay: 3,  flowSpeed: 1.0, minSegments: 22, blockedCells: 5,  hasReservoir: true,  hasEndCrystal: true },
+  easy:   { gridSize: 7,  flowDelay: 15, minSegments: 10, blockedCells: 0,  hasReservoir: false, hasEndCrystal: false },
+  medium: { gridSize: 9,  flowDelay: 10, minSegments: 16, blockedCells: 4,  hasReservoir: false, hasEndCrystal: false },
+  hard:   { gridSize: 10, flowDelay: 6,  minSegments: 22, blockedCells: 5,  hasReservoir: true,  hasEndCrystal: true },
 };
+
+// ===== FLOW SPEED RAMP =====
+
+const FLOW_SPEED_CONFIGS: Record<string, { start: number; end: number; rampSegments: number }> = {
+  easy:   { start: 3.0, end: 1.8, rampSegments: 15 },
+  medium: { start: 2.5, end: 1.3, rampSegments: 15 },
+  hard:   { start: 2.0, end: 0.8, rampSegments: 12 },
+};
+
+export function getFlowSpeed(difficulty: string, segmentCount: number): number {
+  const c = FLOW_SPEED_CONFIGS[difficulty] || FLOW_SPEED_CONFIGS.medium;
+  const t = Math.min(segmentCount / c.rampSegments, 1);
+  return c.start + (c.end - c.start) * t;
+}
 
 // ===== PIPE GENERATION =====
 
@@ -282,9 +298,12 @@ export function generateLevel(
   // Generate pipe queue
   const queue = generateQueue(rng, queueSize);
 
+  const initialFlowSpeed = getFlowSpeed(difficulty, 0);
+
   return {
     grid,
     gridSize: gs,
+    difficulty,
     sourcePos: [sourceRow, sourceCol],
     sourceExitDir,
     endCrystalPos,
@@ -297,14 +316,15 @@ export function generateLevel(
     flowActive: false,
     flowHead: null,
     flowTimer: 0,
-    flowSpeed: params.flowSpeed,
-    baseFlowSpeed: params.flowSpeed,
+    flowSpeed: initialFlowSpeed,
+    baseFlowSpeed: initialFlowSpeed,
     initialDelay: params.flowDelay,
     delayTimer: params.flowDelay,
     gameOver: false,
     reachedEndCrystal: false,
     minSegments: params.minSegments,
     replaceCooldown: 0,
+    lastReplaced: null,
   };
 }
 
@@ -334,12 +354,14 @@ export function placePipe(
 
   const s = deepCopyState(state);
   const nextPipe = s.queue.shift()!;
+  s.lastReplaced = null;
 
   // Replacing an existing unused pipe
   if (s.grid[row][col].pipe !== null) {
     s.penalties++;
     s.score--;
     s.replaceCooldown = 0.3; // 300ms cooldown
+    s.lastReplaced = [row, col];
   }
 
   s.grid[row][col].pipe = nextPipe;
@@ -458,10 +480,8 @@ export function tickArcaneConduit(
           s.score += 5;
         }
 
-        // Speed increase: 2% faster every 5 segments
-        if (s.segmentCount % 5 === 0) {
-          s.flowSpeed = s.flowSpeed * 0.98;
-        }
+        // Gradual flow speed ramp
+        s.flowSpeed = getFlowSpeed(s.difficulty, s.segmentCount);
       }
 
       // Get exit direction

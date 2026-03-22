@@ -7,10 +7,8 @@ import {
   placePipe,
   tickArcaneConduit,
   getWarningCells,
-  getExitDirection,
   type ArcaneConduitState,
   type PipeType,
-  type FlowHead,
 } from "@/lib/games/arcane-conduit";
 
 interface ArcaneConduitProps {
@@ -22,7 +20,6 @@ interface ArcaneConduitProps {
 }
 
 // Pipe rendering: which lines to draw for each pipe type
-// Each connection is from center to edge in a direction (0=up, 1=right, 2=down, 3=left)
 const PIPE_DRAW_DIRS: Record<PipeType, number[]> = {
   horizontal: [1, 3],
   vertical: [0, 2],
@@ -34,11 +31,14 @@ const PIPE_DRAW_DIRS: Record<PipeType, number[]> = {
 };
 
 const DIR_OFFSETS = [
-  [0, -0.5], // up: center → top
-  [0.5, 0],  // right: center → right
-  [0, 0.5],  // down: center → bottom
-  [-0.5, 0], // left: center → left
+  [0, -0.5], // up
+  [0.5, 0],  // right
+  [0, 0.5],  // down
+  [-0.5, 0], // left
 ];
+
+const DR = [-1, 0, 1, 0];
+const DC = [0, 1, 0, -1];
 
 export function ArcaneConduit({
   seed,
@@ -53,18 +53,13 @@ export function ArcaneConduit({
   const stateRef = useRef<ArcaneConduitState | null>(null);
   const rngRef = useRef<ReturnType<typeof createRNG> | null>(null);
   const [displayState, setDisplayState] = useState({
-    score: 0,
-    segments: 0,
-    minSegments: 10,
-    delayTimer: 0,
-    gameOver: false,
-    penalties: 0,
-    queue: [] as PipeType[],
-    flowActive: false,
+    score: 0, segments: 0, minSegments: 10, delayTimer: 0,
+    gameOver: false, penalties: 0, queue: [] as PipeType[], flowActive: false,
   });
   const [status, setStatus] = useState<"playing" | "overflow" | "complete">("playing");
   const [hoverCell, setHoverCell] = useState<[number, number] | null>(null);
   const [cellSize, setCellSize] = useState(40);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Multi-round state
   const rounds = Number(config.rounds) || 1;
@@ -75,13 +70,37 @@ export function ArcaneConduit({
   const effectiveTimeLimit = Number(config.timeLimit) || timeLimit || 0;
   const [elapsedTime, setElapsedTime] = useState(0);
 
+  // First-time hint + replacement toast tracking
+  const firstPipePlacedRef = useRef(false);
+  const showReplacementHintRef = useRef(true);
+  const replaceToastRef = useRef<{ row: number; col: number; timer: number } | null>(null);
+  const replaceAnimRef = useRef<{ row: number; col: number; oldPipe: PipeType; timer: number } | null>(null);
+
   const handleCellClick = useCallback(
     (row: number, col: number) => {
       const state = stateRef.current;
       const rng = rngRef.current;
       if (!state || !rng || state.gameOver || showingScoreboard) return;
 
-      stateRef.current = placePipe(state, row, col, rng);
+      const hadPipe = state.grid[row][col].pipe;
+      const newState = placePipe(state, row, col, rng);
+
+      if (newState !== state) {
+        firstPipePlacedRef.current = true;
+
+        // Track replacement animation
+        if (newState.lastReplaced) {
+          if (hadPipe) {
+            replaceAnimRef.current = { row, col, oldPipe: hadPipe, timer: 0.3 };
+          }
+          if (showReplacementHintRef.current) {
+            replaceToastRef.current = { row, col, timer: 2.0 };
+            showReplacementHintRef.current = false;
+          }
+        }
+
+        stateRef.current = newState;
+      }
     },
     [showingScoreboard]
   );
@@ -93,18 +112,28 @@ export function ArcaneConduit({
       if (!canvas || !state) return;
 
       const rect = canvas.getBoundingClientRect();
-      const queueWidth = cellSize * 2;
-      const x = (e.clientX - rect.left) * (canvas.width / rect.width) - queueWidth;
-      const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
 
-      const col = Math.floor(x / cellSize);
-      const row = Math.floor(y / cellSize);
+      let col: number, row: number;
+      if (isMobile) {
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        col = Math.floor(x / cellSize);
+        row = Math.floor(y / cellSize);
+      } else {
+        const queueWidth = cellSize * 2.5;
+        const x = (e.clientX - rect.left) * scaleX - queueWidth;
+        const y = (e.clientY - rect.top) * scaleY;
+        col = Math.floor(x / cellSize);
+        row = Math.floor(y / cellSize);
+      }
 
       if (row >= 0 && row < state.gridSize && col >= 0 && col < state.gridSize) {
         handleCellClick(row, col);
       }
     },
-    [cellSize, handleCellClick]
+    [cellSize, handleCellClick, isMobile]
   );
 
   const handleCanvasMove = useCallback(
@@ -114,12 +143,22 @@ export function ArcaneConduit({
       if (!canvas || !state) return;
 
       const rect = canvas.getBoundingClientRect();
-      const queueWidth = cellSize * 2;
-      const x = (e.clientX - rect.left) * (canvas.width / rect.width) - queueWidth;
-      const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
 
-      const col = Math.floor(x / cellSize);
-      const row = Math.floor(y / cellSize);
+      let col: number, row: number;
+      if (isMobile) {
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+        col = Math.floor(x / cellSize);
+        row = Math.floor(y / cellSize);
+      } else {
+        const queueWidth = cellSize * 2.5;
+        const x = (e.clientX - rect.left) * scaleX - queueWidth;
+        const y = (e.clientY - rect.top) * scaleY;
+        col = Math.floor(x / cellSize);
+        row = Math.floor(y / cellSize);
+      }
 
       if (row >= 0 && row < state.gridSize && col >= 0 && col < state.gridSize) {
         setHoverCell([row, col]);
@@ -127,36 +166,54 @@ export function ArcaneConduit({
         setHoverCell(null);
       }
     },
-    [cellSize]
+    [cellSize, isMobile]
   );
 
   // Initialize round
   const initRound = useCallback(
     (roundNum: number) => {
       const roundSeed = seed + roundNum * 1000;
-      const queueSize = 5;
-      const state = generateLevel(roundSeed, difficulty, queueSize);
+      const state = generateLevel(roundSeed, difficulty, 5);
       stateRef.current = state;
       rngRef.current = createRNG(roundSeed + 999);
+      firstPipePlacedRef.current = false;
+      showReplacementHintRef.current = true;
+      replaceToastRef.current = null;
+      replaceAnimRef.current = null;
       setStatus("playing");
       setElapsedTime(0);
       setDisplayState({
-        score: state.score,
-        segments: state.segmentCount,
-        minSegments: state.minSegments,
-        delayTimer: state.delayTimer,
-        gameOver: false,
-        penalties: state.penalties,
-        queue: [...state.queue],
-        flowActive: false,
+        score: state.score, segments: state.segmentCount, minSegments: state.minSegments,
+        delayTimer: state.delayTimer, gameOver: false, penalties: state.penalties,
+        queue: [...state.queue], flowActive: false,
       });
     },
     [seed, difficulty]
   );
 
+  useEffect(() => { initRound(currentRound); }, [currentRound, initRound]);
+
+  // Detect mobile
   useEffect(() => {
-    initRound(currentRound);
-  }, [currentRound, initRound]);
+    const check = () => setIsMobile(window.innerWidth < 500);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Cell size
+  useEffect(() => {
+    const gs = difficulty === "easy" ? 7 : difficulty === "medium" ? 9 : 10;
+    const maxW = window.innerWidth - 32;
+    const maxH = window.innerHeight * 0.6;
+    let cs: number;
+    if (isMobile) {
+      cs = Math.floor(maxW / gs);
+    } else {
+      cs = Math.floor((Math.min(maxW, maxH) - 100) / gs);
+    }
+    setCellSize(Math.max(28, Math.min(cs, 50)));
+  }, [difficulty, isMobile]);
 
   // Game loop
   useEffect(() => {
@@ -167,10 +224,11 @@ export function ArcaneConduit({
     const state = stateRef.current;
     if (!state) return;
 
-    const queueWidth = cellSize * 2;
-    const gridPixels = state.gridSize * cellSize;
-    canvas.width = gridPixels + queueWidth;
-    canvas.height = gridPixels;
+    const qw = isMobile ? 0 : cellSize * 2.5;
+    const gridPx = state.gridSize * cellSize;
+    const queueH = isMobile ? cellSize * 1.8 : 0;
+    canvas.width = gridPx + (isMobile ? 0 : qw);
+    canvas.height = gridPx + queueH;
 
     let lastTime = 0;
     let animFrame = 0;
@@ -179,11 +237,7 @@ export function ArcaneConduit({
     let elapsed = 0;
 
     function gameLoop(timestamp: number) {
-      if (lastTime === 0) {
-        lastTime = timestamp;
-        animFrame = requestAnimationFrame(gameLoop);
-        return;
-      }
+      if (lastTime === 0) { lastTime = timestamp; animFrame = requestAnimationFrame(gameLoop); return; }
       const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
       lastTime = timestamp;
       elapsed += dt;
@@ -191,7 +245,7 @@ export function ArcaneConduit({
       let s = stateRef.current!;
       const rng = rngRef.current!;
 
-      // Time limit check
+      // Time limit
       if (effectiveTimeLimit > 0 && elapsed >= effectiveTimeLimit && !s.gameOver) {
         s = { ...s, gameOver: true };
         stateRef.current = s;
@@ -202,78 +256,65 @@ export function ArcaneConduit({
         stateRef.current = s;
       }
 
-      // Game over detection
+      // Tick toast/anim timers
+      if (replaceToastRef.current) {
+        replaceToastRef.current.timer -= dt;
+        if (replaceToastRef.current.timer <= 0) replaceToastRef.current = null;
+      }
+      if (replaceAnimRef.current) {
+        replaceAnimRef.current.timer -= dt;
+        if (replaceAnimRef.current.timer <= 0) replaceAnimRef.current = null;
+      }
+
       if (s.gameOver && !completed) {
         completed = true;
         const isComplete = s.segmentCount >= s.minSegments;
         setStatus(isComplete ? "complete" : "overflow");
 
-        // Handle multi-round
         setTimeout(() => {
           const newScores = [...roundScores, s.score];
           setRoundScores(newScores);
 
           if (currentRound + 1 < rounds) {
-            // Show scoreboard then advance
             setShowingScoreboard(true);
             setTimeout(() => {
               setShowingScoreboard(false);
               setCurrentRound((r) => r + 1);
             }, 4000);
           } else {
-            // Final round complete
             const totalScore = newScores.reduce((a, b) => a + b, 0);
             onCompleteRef.current(totalScore, {
-              rounds: newScores.length,
-              perRoundScores: newScores,
-              segments: s.segmentCount,
-              complete: s.segmentCount >= s.minSegments,
-              penalties: s.penalties,
-              reachedEndCrystal: s.reachedEndCrystal,
+              rounds: newScores.length, perRoundScores: newScores,
+              segments: s.segmentCount, complete: isComplete,
+              penalties: s.penalties, reachedEndCrystal: s.reachedEndCrystal,
             });
           }
         }, 1500);
       }
 
-      // Update display periodically
       frameCount++;
       if (frameCount % 6 === 0) {
         setDisplayState({
-          score: s.score,
-          segments: s.segmentCount,
-          minSegments: s.minSegments,
-          delayTimer: Math.max(0, s.delayTimer),
-          gameOver: s.gameOver,
-          penalties: s.penalties,
-          queue: [...s.queue],
-          flowActive: s.flowActive,
+          score: s.score, segments: s.segmentCount, minSegments: s.minSegments,
+          delayTimer: Math.max(0, s.delayTimer), gameOver: s.gameOver,
+          penalties: s.penalties, queue: [...s.queue], flowActive: s.flowActive,
         });
         setElapsedTime(elapsed);
       }
 
-      render(ctx, s, cellSize, queueWidth, hoverCell);
+      render(ctx, s, cellSize, isMobile, hoverCell, firstPipePlacedRef.current, replaceToastRef.current, replaceAnimRef.current);
       animFrame = requestAnimationFrame(gameLoop);
     }
 
     animFrame = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animFrame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cellSize, currentRound, effectiveTimeLimit]);
-
-  // Responsive cell size
-  useEffect(() => {
-    const gs = difficulty === "easy" ? 7 : difficulty === "medium" ? 9 : 10;
-    const maxSize = Math.min(window.innerWidth - 32, window.innerHeight * 0.6);
-    const cs = Math.floor((maxSize - 80) / gs); // subtract queue width
-    setCellSize(Math.max(28, Math.min(cs, 50)));
-  }, [difficulty]);
+  }, [cellSize, currentRound, effectiveTimeLimit, isMobile]);
 
   if (showingScoreboard) {
     return (
       <div className="flex flex-col items-center gap-4">
-        <h2 className="font-cinzel text-xl font-bold text-gold">
-          Round {currentRound + 1} Complete!
-        </h2>
+        <h2 className="font-cinzel text-xl font-bold text-gold">Round {currentRound + 1} Complete!</h2>
         <div className="rounded border border-border bg-surface p-4">
           {roundScores.map((s, i) => (
             <div key={i} className="flex items-center justify-between gap-4 text-sm">
@@ -293,7 +334,6 @@ export function ArcaneConduit({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* Status bar */}
       <div className="flex flex-wrap items-center justify-center gap-3">
         <span className="rounded bg-surface px-3 py-1 text-sm">
           Score: <span className="font-bold text-gold">{displayState.score}</span>
@@ -304,7 +344,11 @@ export function ArcaneConduit({
           </span>
         </span>
         {!displayState.flowActive && displayState.delayTimer > 0 && (
-          <span className="rounded bg-purple-900/30 px-3 py-1 text-sm font-bold text-purple-300">
+          <span className={`rounded px-3 py-1 text-sm font-bold ${
+            displayState.delayTimer <= 1 ? "bg-red-900/30 text-red-300" :
+            displayState.delayTimer <= 3 ? "bg-orange-900/30 text-orange-300" :
+            "bg-purple-900/30 text-purple-300"
+          }`}>
             Flow in {Math.ceil(displayState.delayTimer)}s
           </span>
         )}
@@ -329,18 +373,17 @@ export function ArcaneConduit({
         )}
       </div>
 
-      {/* Canvas */}
       <canvas
         ref={canvasRef}
         className="rounded-lg border border-border touch-none"
-        style={{ maxWidth: "100%", maxHeight: "65vh" }}
+        style={{ maxWidth: "100%", maxHeight: "70vh" }}
         onClick={handleCanvasClick}
         onMouseMove={handleCanvasMove}
         onMouseLeave={() => setHoverCell(null)}
       />
 
       <p className="text-xs text-gray-500">
-        Tap/click a cell to place the next pipe piece. Build ahead of the flow!
+        Tap a cell to place the next pipe. You can replace unused pipes (-1 pt).
       </p>
     </div>
   );
@@ -352,49 +395,101 @@ function render(
   ctx: CanvasRenderingContext2D,
   state: ArcaneConduitState,
   cs: number,
-  queueWidth: number,
+  isMobile: boolean,
   hoverCell: [number, number] | null,
+  firstPipePlaced: boolean,
+  replaceToast: { row: number; col: number; timer: number } | null,
+  replaceAnim: { row: number; col: number; oldPipe: PipeType; timer: number } | null,
 ) {
   const gs = state.gridSize;
   const gridW = gs * cs;
-  const totalW = gridW + queueWidth;
-  const totalH = gridW;
+  const qw = isMobile ? 0 : cs * 2.5;
+  const queueH = isMobile ? cs * 1.8 : 0;
+  const totalW = gridW + qw;
+  const totalH = gridW + queueH;
+  const now = Date.now();
 
-  // Background
   ctx.fillStyle = "#0d0d14";
   ctx.fillRect(0, 0, totalW, totalH);
 
-  // ===== QUEUE (left side) =====
-  ctx.fillStyle = "#111120";
-  ctx.fillRect(0, 0, queueWidth, totalH);
+  // ===== QUEUE =====
+  if (isMobile) {
+    // Queue below grid (horizontal)
+    const qy = gridW + 4;
+    ctx.fillStyle = "#111120";
+    ctx.fillRect(0, qy, gridW, queueH - 4);
 
-  // Queue label
-  ctx.fillStyle = "#666";
-  ctx.font = `bold ${Math.floor(cs / 3.5)}px monospace`;
-  ctx.textAlign = "center";
-  ctx.fillText("NEXT", queueWidth / 2, cs / 2);
+    ctx.fillStyle = "#e5c07b";
+    ctx.font = `bold ${Math.floor(cs / 3)}px monospace`;
+    ctx.textAlign = "left";
+    ctx.fillText("NEXT", 6, qy + queueH / 2 + 4);
 
-  // Queue pipes
-  for (let i = 0; i < state.queue.length; i++) {
-    const pipe = state.queue[i];
-    const x = queueWidth / 2;
-    const y = cs * (i + 1) + cs / 2;
-    const size = i === 0 ? cs * 0.7 : cs * 0.5;
+    const startX = cs * 1.8;
+    for (let i = 0; i < state.queue.length; i++) {
+      const px = startX + i * cs * 1.3;
+      const py = qy + queueH / 2;
+      const size = i === 0 ? cs * 0.8 : cs * 0.4;
 
-    // Highlight first piece
-    if (i === 0) {
-      ctx.strokeStyle = "#e5c07b";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x - size / 2 - 4, y - size / 2 - 4, size + 8, size + 8);
+      if (i === 0) {
+        ctx.strokeStyle = "#e5c07b";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px - size / 2 - 3, py - size / 2 - 3, size + 6, size + 6);
+      }
+      drawPipe(ctx, state.queue[i], px, py, size, i === 0 ? "#c678dd" : "#4a4a6a");
     }
 
-    drawPipePreview(ctx, pipe, x, y, size, i === 0 ? "#c678dd" : "#4a4a6a");
+    // Animated arrow from first piece toward grid
+    if (state.queue.length > 0) {
+      const arrowX = startX;
+      const arrowY = qy - 4 + Math.sin(now / 400) * 3;
+      ctx.fillStyle = "#e5c07b";
+      ctx.beginPath();
+      ctx.moveTo(arrowX, arrowY);
+      ctx.lineTo(arrowX - 5, arrowY + 8);
+      ctx.lineTo(arrowX + 5, arrowY + 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else {
+    // Queue on left (vertical)
+    ctx.fillStyle = "#111120";
+    ctx.fillRect(0, 0, qw, gridW);
+
+    ctx.fillStyle = "#e5c07b";
+    ctx.font = `bold ${Math.floor(cs / 3)}px monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("NEXT", qw / 2, cs * 0.6);
+
+    for (let i = 0; i < state.queue.length; i++) {
+      const px = qw / 2;
+      const py = cs * (i + 1.2) + cs / 2;
+      const size = i === 0 ? cs * 0.8 : cs * 0.4;
+
+      if (i === 0) {
+        ctx.strokeStyle = "#e5c07b";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px - size / 2 - 4, py - size / 2 - 4, size + 8, size + 8);
+      }
+      drawPipe(ctx, state.queue[i], px, py, size, i === 0 ? "#c678dd" : "#4a4a6a");
+    }
+
+    // Animated arrow pointing toward grid
+    if (state.queue.length > 0) {
+      const arrowX = qw - 4 + Math.sin(now / 400) * 3;
+      const arrowY = cs * 1.7 + cs / 2;
+      ctx.fillStyle = "#e5c07b";
+      ctx.beginPath();
+      ctx.moveTo(arrowX, arrowY);
+      ctx.lineTo(arrowX - 8, arrowY - 5);
+      ctx.lineTo(arrowX - 8, arrowY + 5);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 
   // ===== GRID =====
-  const ox = queueWidth; // offset for grid
+  const ox = isMobile ? 0 : qw;
 
-  // Grid background
   ctx.fillStyle = "#12121e";
   ctx.fillRect(ox, 0, gridW, gridW);
 
@@ -402,22 +497,33 @@ function render(
   ctx.strokeStyle = "#1a1a28";
   ctx.lineWidth = 1;
   for (let i = 0; i <= gs; i++) {
-    ctx.beginPath();
-    ctx.moveTo(ox + i * cs, 0);
-    ctx.lineTo(ox + i * cs, gridW);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(ox, i * cs);
-    ctx.lineTo(ox + gridW, i * cs);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox + i * cs, 0); ctx.lineTo(ox + i * cs, gridW); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox, i * cs); ctx.lineTo(ox + gridW, i * cs); ctx.stroke();
   }
 
   // Warning cells
   const warnings = getWarningCells(state);
   for (const [wr, wc] of warnings) {
     if (wr >= 0 && wr < gs && wc >= 0 && wc < gs) {
-      ctx.fillStyle = `rgba(239, 68, 68, ${0.15 + Math.sin(Date.now() / 200) * 0.1})`;
+      ctx.fillStyle = `rgba(239, 68, 68, ${0.15 + Math.sin(now / 200) * 0.1})`;
       ctx.fillRect(ox + wc * cs + 1, wr * cs + 1, cs - 2, cs - 2);
+    }
+  }
+
+  // First-time hint: highlight cell adjacent to source
+  if (!firstPipePlaced && !state.flowActive) {
+    const hintR = state.sourcePos[0] + DR[state.sourceExitDir];
+    const hintC = state.sourcePos[1] + DC[state.sourceExitDir];
+    if (hintR >= 0 && hintR < gs && hintC >= 0 && hintC < gs) {
+      const pulse = 0.3 + Math.sin(now / 300) * 0.15;
+      ctx.strokeStyle = `rgba(229, 192, 123, ${pulse + 0.3})`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(ox + hintC * cs + 2, hintR * cs + 2, cs - 4, cs - 4);
+
+      ctx.fillStyle = `rgba(229, 192, 123, ${pulse + 0.2})`;
+      ctx.font = `bold ${Math.floor(cs / 4)}px monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText("Build here", ox + hintC * cs + cs / 2, hintR * cs + cs / 2);
     }
   }
 
@@ -428,11 +534,9 @@ function render(
       const x = ox + c * cs;
       const y = r * cs;
 
-      // Special cell backgrounds
       if (cell.state === "blocked") {
         ctx.fillStyle = "#1a1a2a";
         ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
-        // Cracked pattern
         ctx.strokeStyle = "#252538";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -447,45 +551,92 @@ function render(
       } else if (cell.state === "reservoir") {
         ctx.fillStyle = "#0f1a2a";
         ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
-        // Glowing pool
-        ctx.fillStyle = "rgba(100, 150, 255, 0.1)";
+        ctx.fillStyle = "rgba(100, 150, 255, 0.12)";
         ctx.fillRect(x + 3, y + 3, cs - 6, cs - 6);
       } else if (cell.state === "source") {
-        // Source crystal
+        // Purple cell background
+        ctx.fillStyle = "rgba(198, 120, 221, 0.1)";
+        ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
+
+        // Pulsing diamond
+        const pulse = 1.0 + 0.2 * Math.sin(now / 400);
         ctx.save();
         ctx.shadowColor = "#c678dd";
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 15;
         ctx.fillStyle = "#c678dd";
+        drawDiamond(ctx, x + cs / 2, y + cs / 2, cs / 3 * pulse);
+        ctx.restore();
+
+        // Thick arrow with arrowhead
+        const [adx, ady] = DIR_OFFSETS[state.sourceExitDir];
         const cx = x + cs / 2;
         const cy = y + cs / 2;
-        drawDiamond(ctx, cx, cy, cs / 3);
-        ctx.restore();
-        // Arrow showing flow direction
-        const [adx, ady] = DIR_OFFSETS[state.sourceExitDir];
-        ctx.strokeStyle = "rgba(198, 120, 221, 0.4)";
-        ctx.lineWidth = 2;
+        const ax = cx + adx * cs * 0.9;
+        const ay = cy + ady * cs * 0.9;
+        ctx.strokeStyle = "rgba(198, 120, 221, 0.6)";
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + adx * cs * 0.8, cy + ady * cs * 0.8);
+        ctx.lineTo(ax, ay);
         ctx.stroke();
+        // Arrowhead
+        ctx.fillStyle = "rgba(198, 120, 221, 0.6)";
+        ctx.beginPath();
+        if (state.sourceExitDir === 0) { // up
+          ctx.moveTo(ax, ay); ctx.lineTo(ax - 4, ay + 6); ctx.lineTo(ax + 4, ay + 6);
+        } else if (state.sourceExitDir === 1) { // right
+          ctx.moveTo(ax, ay); ctx.lineTo(ax - 6, ay - 4); ctx.lineTo(ax - 6, ay + 4);
+        } else if (state.sourceExitDir === 2) { // down
+          ctx.moveTo(ax, ay); ctx.lineTo(ax - 4, ay - 6); ctx.lineTo(ax + 4, ay - 6);
+        } else { // left
+          ctx.moveTo(ax, ay); ctx.lineTo(ax + 6, ay - 4); ctx.lineTo(ax + 6, ay + 4);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // "START" label
+        ctx.fillStyle = "#c678dd";
+        ctx.font = `bold ${Math.floor(cs / 5)}px monospace`;
+        ctx.textAlign = "center";
+        ctx.fillText("START", cx, y + cs + cs / 5);
       } else if (cell.state === "end-crystal") {
-        // End crystal
+        // Blue cell background
+        ctx.fillStyle = "rgba(97, 175, 239, 0.1)";
+        ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
+
+        // Pulsing diamond
+        const pulse = 1.0 + 0.2 * Math.sin(now / 400);
         ctx.save();
         ctx.shadowColor = "#61afef";
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 15;
         ctx.fillStyle = "#61afef";
-        drawDiamond(ctx, x + cs / 2, y + cs / 2, cs / 3);
+        drawDiamond(ctx, x + cs / 2, y + cs / 2, cs / 3 * pulse);
         ctx.restore();
+
+        // "END" label
+        ctx.fillStyle = "#61afef";
+        ctx.font = `bold ${Math.floor(cs / 5)}px monospace`;
+        ctx.textAlign = "center";
+        ctx.fillText("END", x + cs / 2, y + cs + cs / 5);
       }
 
       // Draw pipe
       if (cell.pipe) {
+        // Replacement fade-out animation
+        if (replaceAnim && replaceAnim.row === r && replaceAnim.col === c) {
+          const fadeAlpha = replaceAnim.timer / 0.3;
+          if (fadeAlpha > 0) {
+            ctx.globalAlpha = fadeAlpha * 0.5;
+            drawPipe(ctx, replaceAnim.oldPipe, x + cs / 2, y + cs / 2, cs, "#ef4444");
+            ctx.globalAlpha = 1;
+          }
+        }
+
         const pipeColor = cell.flowFilled
           ? (cell.flowProgress >= 1 ? "#e5c07b" : "#c678dd")
           : "#4a4a6a";
         drawPipe(ctx, cell.pipe, x + cs / 2, y + cs / 2, cs, pipeColor);
 
-        // Flow fill animation
         if (cell.flowFilled && cell.flowProgress < 1) {
           ctx.fillStyle = `rgba(229, 192, 123, ${0.3 * cell.flowProgress})`;
           ctx.fillRect(x + 2, y + 2, cs - 4, cs - 4);
@@ -499,12 +650,48 @@ function render(
     const [hr, hc] = hoverCell;
     const cell = state.grid[hr][hc];
     if (cell.state !== "blocked" && cell.state !== "source" && cell.state !== "end-crystal" && !cell.locked) {
-      const x = ox + hc * cs + cs / 2;
-      const y = hr * cs + cs / 2;
       ctx.globalAlpha = 0.3;
-      drawPipe(ctx, state.queue[0], x, y, cs, "#c678dd");
+      drawPipe(ctx, state.queue[0], ox + hc * cs + cs / 2, hr * cs + cs / 2, cs, "#c678dd");
       ctx.globalAlpha = 1;
     }
+  }
+
+  // Replacement toast
+  if (replaceToast) {
+    const tx = ox + replaceToast.col * cs + cs / 2;
+    const ty = replaceToast.row * cs - 8;
+    const alpha = Math.min(1, replaceToast.timer / 0.5);
+    ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
+    ctx.font = `bold ${Math.floor(cs / 4)}px monospace`;
+    ctx.textAlign = "center";
+    ctx.fillText("Replaced! (-1)", tx, ty);
+  }
+
+  // Countdown overlay (before flow starts)
+  if (!state.flowActive && state.delayTimer > 0 && !state.gameOver) {
+    const secs = Math.ceil(state.delayTimer);
+    const pulse = 1.0 + 0.08 * Math.sin(now / 300);
+
+    let color: string;
+    if (secs <= 1) color = "#ef4444";
+    else if (secs <= 3) color = "#f59e0b";
+    else color = "#e5c07b";
+
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = color;
+    const fontSize = cs * 1.3 * pulse;
+    ctx.font = `bold ${Math.floor(fontSize)}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.globalAlpha = 0.85;
+    ctx.fillText(`${secs}`, ox + gridW / 2, gridW / 2 - cs * 0.3);
+    ctx.font = `bold ${Math.floor(cs * 0.5)}px monospace`;
+    ctx.globalAlpha = 0.5;
+    ctx.fillText("FLOW STARTS IN", ox + gridW / 2, gridW / 2 + cs * 0.5);
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   // Game over overlay
@@ -513,48 +700,26 @@ function render(
     ctx.fillRect(ox, 0, gridW, gridW);
 
     const isComplete = state.segmentCount >= state.minSegments;
-    if (isComplete) {
-      ctx.save();
-      ctx.shadowColor = "#98c379";
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = "#98c379";
-      ctx.font = `bold ${Math.floor(cs * 1.1)}px monospace`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("COMPLETE!", ox + gridW / 2, gridW / 2 - 10);
-      ctx.restore();
-    } else {
-      ctx.save();
-      ctx.shadowColor = "#ef4444";
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = "#ef4444";
-      ctx.font = `bold ${Math.floor(cs * 1.1)}px monospace`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("OVERFLOW!", ox + gridW / 2, gridW / 2 - 10);
-      ctx.restore();
-    }
+    ctx.save();
+    ctx.shadowColor = isComplete ? "#98c379" : "#ef4444";
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = isComplete ? "#98c379" : "#ef4444";
+    ctx.font = `bold ${Math.floor(cs * 1.1)}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(isComplete ? "COMPLETE!" : "OVERFLOW!", ox + gridW / 2, gridW / 2 - 10);
+    ctx.restore();
 
     ctx.fillStyle = "#ccc";
     ctx.font = `${Math.floor(cs * 0.5)}px monospace`;
-    ctx.fillText(
-      `${state.segmentCount} segments | ${state.score} pts`,
-      ox + gridW / 2,
-      gridW / 2 + cs * 0.8
-    );
+    ctx.textAlign = "center";
+    ctx.fillText(`${state.segmentCount} segments | ${state.score} pts`, ox + gridW / 2, gridW / 2 + cs * 0.8);
   }
 }
 
 // ===== DRAW HELPERS =====
 
-function drawPipe(
-  ctx: CanvasRenderingContext2D,
-  pipe: PipeType,
-  cx: number,
-  cy: number,
-  cs: number,
-  color: string
-) {
+function drawPipe(ctx: CanvasRenderingContext2D, pipe: PipeType, cx: number, cy: number, cs: number, color: string) {
   const dirs = PIPE_DRAW_DIRS[pipe];
   const lineWidth = cs / 4;
 
@@ -562,13 +727,11 @@ function drawPipe(
   ctx.lineWidth = lineWidth;
   ctx.lineCap = "round";
 
-  // Center dot
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(cx, cy, lineWidth / 2.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Lines from center to edges
   for (const dir of dirs) {
     const [dx, dy] = DIR_OFFSETS[dir];
     ctx.beginPath();
@@ -578,23 +741,7 @@ function drawPipe(
   }
 }
 
-function drawPipePreview(
-  ctx: CanvasRenderingContext2D,
-  pipe: PipeType,
-  cx: number,
-  cy: number,
-  size: number,
-  color: string
-) {
-  drawPipe(ctx, pipe, cx, cy, size, color);
-}
-
-function drawDiamond(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  size: number
-) {
+function drawDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
   ctx.beginPath();
   ctx.moveTo(cx, cy - size);
   ctx.lineTo(cx + size, cy);
