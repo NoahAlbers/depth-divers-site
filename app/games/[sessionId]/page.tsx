@@ -10,6 +10,7 @@ import { ArcaneConduit } from "@/components/games/arcane-conduit";
 import { RuneEchoes } from "@/components/games/rune-echoes";
 import { GlyphRace } from "@/components/games/glyph-race";
 import { StalactiteStorm } from "@/components/games/stalactite-storm";
+import { SpiderSwat } from "@/components/games/spider-swat";
 import { useParams } from "next/navigation";
 
 interface GameResult {
@@ -225,6 +226,7 @@ export default function GameSessionPage() {
       {session.gameId === "rune-echoes" && <RuneEchoes {...gameProps} />}
       {session.gameId === "glyph-race" && <GlyphRace {...gameProps} />}
       {session.gameId === "stalactite-storm" && <StalactiteStorm {...gameProps} />}
+      {session.gameId === "spider-swat" && <SpiderSwat {...gameProps} />}
     </div>
   );
 }

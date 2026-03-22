@@ -141,3 +141,21 @@ model LinkPreview {
   domain      String
   fetchedAt   DateTime @default(now())
 }
+
+// --- Character Sheets ---
+
+model CharacterSheet {
+  id             String   @id @default(cuid())
+  playerName     String   @unique
+  characterName  String   @default("")
+  level          Int      @default(1)
+  movementSpeed  Int      @default(30)
+  strength       Int      @default(10)
+  dexterity      Int      @default(10)
+  constitution   Int      @default(10)
+  intelligence   Int      @default(10)
+  wisdom         Int      @default(10)
+  charisma       Int      @default(10)
+  skills         String   @default("{}") // JSON: { skillName: { proficient: bool, expertise: bool } }
+  updatedAt      DateTime @updatedAt
+}

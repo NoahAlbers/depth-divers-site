@@ -272,6 +272,12 @@ const tools = [
     tagline: "Find your place at the table",
     icon: "\u{1FA91}",
   },
+  {
+    href: "/character",
+    title: "My Character",
+    tagline: "Your stats, skills, and abilities",
+    icon: "\uD83D\uDCDC",
+  },
 ];
 
 export default function Home() {

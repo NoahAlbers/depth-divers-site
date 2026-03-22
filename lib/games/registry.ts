@@ -7,7 +7,8 @@ export interface GameDefinition {
   maxPlayers: number;
   defaultTimeLimit: number;
   difficulties: ("easy" | "medium" | "hard")[];
-  category: "puzzle" | "reflex" | "memory" | "race";
+  category: "puzzle" | "reflex" | "memory" | "race" | "cooperative" | "rhythm" | "timing";
+  defaultSkill?: string; // D&D skill name, or null for raw ability
 }
 
 export const GAMES: GameDefinition[] = [
@@ -58,6 +59,20 @@ export const GAMES: GameDefinition[] = [
     defaultTimeLimit: 0,
     difficulties: ["easy", "medium", "hard"],
     category: "reflex",
+    defaultSkill: "Acrobatics",
+  },
+  {
+    id: "spider-swat",
+    name: "Spider Swat",
+    description:
+      "A swarm of cave spiders drops from the ceiling! Swat them before they scatter! Don't hit the mushrooms!",
+    icon: "🕷️",
+    minPlayers: 1,
+    maxPlayers: 6,
+    defaultTimeLimit: 20,
+    difficulties: ["easy", "medium", "hard"],
+    category: "reflex",
+    defaultSkill: "Perception",
   },
 ];
 
