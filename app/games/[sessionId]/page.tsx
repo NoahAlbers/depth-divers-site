@@ -193,6 +193,34 @@ export default function GameSessionPage() {
 
   // ACTIVE — DM sees leaderboard updating live
   if (effectiveIsDM) {
+    // Special DM view for Defuse the Glyph (god mode)
+    if (session.gameId === "defuse-the-glyph") {
+      return (
+        <div>
+          <h1 className="mb-4 font-cinzel text-3xl font-bold text-gold">
+            {game?.name || session.gameId} — DM View
+          </h1>
+          <DefuseTheGlyph
+            seed={session.seed || 0}
+            difficulty={session.difficulty as "easy" | "medium" | "hard"}
+            timeLimit={session.timeLimit}
+            onComplete={() => {}}
+            config={session.config}
+            sessionId={session.id}
+            players={session.players}
+            playerName=""
+            isDM={true}
+          />
+          <button
+            onClick={handleEnd}
+            className="mt-4 w-full max-w-lg mx-auto block rounded border border-red-500/30 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
+          >
+            End Game
+          </button>
+        </div>
+      );
+    }
+
     // Special DM view for Underdark Telephone
     if (session.gameId === "underdark-telephone") {
       return (
@@ -295,7 +323,14 @@ export default function GameSessionPage() {
       {session.gameId === "lockpicking" && <Lockpicking {...gameProps} />}
       {session.gameId === "drinking-contest" && <DrinkingContest {...gameProps} />}
       {session.gameId === "stealth-sequence" && <StealthSequence {...gameProps} />}
-      {session.gameId === "defuse-the-glyph" && <DefuseTheGlyph {...gameProps} />}
+      {session.gameId === "defuse-the-glyph" && (
+        <DefuseTheGlyph
+          {...gameProps}
+          sessionId={session.id}
+          players={session.players}
+          playerName={playerName || ""}
+        />
+      )}
       {session.gameId === "underdark-telephone" && (
         <UnderdarkTelephone
           {...gameProps}
