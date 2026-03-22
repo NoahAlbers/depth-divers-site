@@ -55,6 +55,7 @@ export interface PipeCell {
   flowFilled: boolean;
   flowProgress: number;       // 0-1 for animation
   flowDirections: number[];   // which entry directions have been used
+  flowEntryDir: number;       // direction flow most recently entered from (-1 = none)
   locked: boolean;
 }
 
@@ -210,6 +211,7 @@ export function generateLevel(
       flowFilled: false,
       flowProgress: 0,
       flowDirections: [],
+      flowEntryDir: -1,
       locked: false,
     }))
   );
@@ -368,6 +370,7 @@ export function placePipe(
   s.grid[row][col].flowFilled = false;
   s.grid[row][col].flowProgress = 0;
   s.grid[row][col].flowDirections = [];
+  s.grid[row][col].flowEntryDir = -1;
 
   // Add new pipe to queue
   s.queue.push(generatePipe(rng));
@@ -464,6 +467,7 @@ export function tickArcaneConduit(
         // Fill this cell
         cell.flowFilled = true;
         cell.flowProgress = 0; // start animation
+        cell.flowEntryDir = enterDir;
         cell.locked = true;
         cell.flowDirections.push(enterDir);
         s.segmentCount++;

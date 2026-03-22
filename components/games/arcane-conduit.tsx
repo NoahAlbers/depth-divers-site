@@ -7,6 +7,7 @@ import {
   placePipe,
   tickArcaneConduit,
   getWarningCells,
+  getExitDirection,
   type ArcaneConduitState,
   type PipeType,
 } from "@/lib/games/arcane-conduit";
@@ -414,82 +415,61 @@ function render(
 
   // ===== QUEUE =====
   if (isMobile) {
-    // Queue below grid (horizontal)
     const qy = gridW + 4;
     ctx.fillStyle = "#111120";
     ctx.fillRect(0, qy, gridW, queueH - 4);
-
     ctx.fillStyle = "#e5c07b";
     ctx.font = `bold ${Math.floor(cs / 3)}px monospace`;
     ctx.textAlign = "left";
     ctx.fillText("NEXT", 6, qy + queueH / 2 + 4);
-
     const startX = cs * 1.8;
     for (let i = 0; i < state.queue.length; i++) {
       const px = startX + i * cs * 1.3;
       const py = qy + queueH / 2;
       const size = i === 0 ? cs * 0.8 : cs * 0.4;
-
       if (i === 0) {
-        ctx.strokeStyle = "#e5c07b";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#e5c07b"; ctx.lineWidth = 2;
         ctx.strokeRect(px - size / 2 - 3, py - size / 2 - 3, size + 6, size + 6);
       }
       drawPipe(ctx, state.queue[i], px, py, size, i === 0 ? "#c678dd" : "#4a4a6a");
     }
-
-    // Animated arrow from first piece toward grid
     if (state.queue.length > 0) {
       const arrowX = startX;
       const arrowY = qy - 4 + Math.sin(now / 400) * 3;
       ctx.fillStyle = "#e5c07b";
       ctx.beginPath();
-      ctx.moveTo(arrowX, arrowY);
-      ctx.lineTo(arrowX - 5, arrowY + 8);
-      ctx.lineTo(arrowX + 5, arrowY + 8);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(arrowX, arrowY); ctx.lineTo(arrowX - 5, arrowY + 8); ctx.lineTo(arrowX + 5, arrowY + 8);
+      ctx.closePath(); ctx.fill();
     }
   } else {
-    // Queue on left (vertical)
     ctx.fillStyle = "#111120";
     ctx.fillRect(0, 0, qw, gridW);
-
     ctx.fillStyle = "#e5c07b";
     ctx.font = `bold ${Math.floor(cs / 3)}px monospace`;
     ctx.textAlign = "center";
     ctx.fillText("NEXT", qw / 2, cs * 0.6);
-
     for (let i = 0; i < state.queue.length; i++) {
       const px = qw / 2;
       const py = cs * (i + 1.2) + cs / 2;
       const size = i === 0 ? cs * 0.8 : cs * 0.4;
-
       if (i === 0) {
-        ctx.strokeStyle = "#e5c07b";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#e5c07b"; ctx.lineWidth = 2;
         ctx.strokeRect(px - size / 2 - 4, py - size / 2 - 4, size + 8, size + 8);
       }
       drawPipe(ctx, state.queue[i], px, py, size, i === 0 ? "#c678dd" : "#4a4a6a");
     }
-
-    // Animated arrow pointing toward grid
     if (state.queue.length > 0) {
       const arrowX = qw - 4 + Math.sin(now / 400) * 3;
       const arrowY = cs * 1.7 + cs / 2;
       ctx.fillStyle = "#e5c07b";
       ctx.beginPath();
-      ctx.moveTo(arrowX, arrowY);
-      ctx.lineTo(arrowX - 8, arrowY - 5);
-      ctx.lineTo(arrowX - 8, arrowY + 5);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(arrowX, arrowY); ctx.lineTo(arrowX - 8, arrowY - 5); ctx.lineTo(arrowX - 8, arrowY + 5);
+      ctx.closePath(); ctx.fill();
     }
   }
 
   // ===== GRID =====
   const ox = isMobile ? 0 : qw;
-
   ctx.fillStyle = "#12121e";
   ctx.fillRect(ox, 0, gridW, gridW);
 
@@ -510,7 +490,7 @@ function render(
     }
   }
 
-  // First-time hint: highlight cell adjacent to source
+  // First-time hint
   if (!firstPipePlaced && !state.flowActive) {
     const hintR = state.sourcePos[0] + DR[state.sourceExitDir];
     const hintC = state.sourcePos[1] + DC[state.sourceExitDir];
@@ -519,7 +499,6 @@ function render(
       ctx.strokeStyle = `rgba(229, 192, 123, ${pulse + 0.3})`;
       ctx.lineWidth = 3;
       ctx.strokeRect(ox + hintC * cs + 2, hintR * cs + 2, cs - 4, cs - 4);
-
       ctx.fillStyle = `rgba(229, 192, 123, ${pulse + 0.2})`;
       ctx.font = `bold ${Math.floor(cs / 4)}px monospace`;
       ctx.textAlign = "center";
@@ -527,100 +506,128 @@ function render(
     }
   }
 
-  // Draw cells
+  // ===== DRAW CELLS =====
   for (let r = 0; r < gs; r++) {
     for (let c = 0; c < gs; c++) {
       const cell = state.grid[r][c];
       const x = ox + c * cs;
       const y = r * cs;
 
+      // --- BLOCKED CELLS: reddish crosshatch ---
       if (cell.state === "blocked") {
-        ctx.fillStyle = "#1a1a2a";
+        ctx.fillStyle = "#1e1215";
         ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
-        ctx.strokeStyle = "#252538";
+        // X pattern
+        ctx.strokeStyle = "#2d1a1a";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x + 4, y + 4); ctx.lineTo(x + cs - 4, y + cs - 4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + cs - 4, y + 4); ctx.lineTo(x + 4, y + cs - 4); ctx.stroke();
+        // Hash grid
+        const step = cs / 4;
+        ctx.strokeStyle = "#251515";
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x + cs * 0.3, y + cs * 0.2);
-        ctx.lineTo(x + cs * 0.5, y + cs * 0.5);
-        ctx.lineTo(x + cs * 0.7, y + cs * 0.4);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x + cs * 0.4, y + cs * 0.6);
-        ctx.lineTo(x + cs * 0.6, y + cs * 0.8);
-        ctx.stroke();
+        for (let i = step; i < cs; i += step) {
+          ctx.beginPath(); ctx.moveTo(x + i, y + 1); ctx.lineTo(x + i, y + cs - 1); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + 1, y + i); ctx.lineTo(x + cs - 1, y + i); ctx.stroke();
+        }
+        // Debris dots
+        ctx.fillStyle = "#3a2222";
+        const debris = [[0.3, 0.25], [0.7, 0.35], [0.45, 0.6], [0.2, 0.75], [0.65, 0.8], [0.5, 0.4]];
+        for (const [dx, dy] of debris) {
+          ctx.beginPath(); ctx.arc(x + cs * dx, y + cs * dy, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        // Recessed border
+        ctx.strokeStyle = "#0a0608";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + 1, y + 1, cs - 2, cs - 2);
+
+      // --- EMPTY BUILDABLE CELLS: lighter + corner marks ---
+      } else if (cell.state === "empty" && !cell.pipe) {
+        ctx.fillStyle = "#14142a";
+        ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
+        // Corner marks
+        const m = cs / 5;
+        ctx.strokeStyle = "#1e1e38";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x + 3, y + 3 + m); ctx.lineTo(x + 3, y + 3); ctx.lineTo(x + 3 + m, y + 3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + cs - 3 - m, y + 3); ctx.lineTo(x + cs - 3, y + 3); ctx.lineTo(x + cs - 3, y + 3 + m); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 3, y + cs - 3 - m); ctx.lineTo(x + 3, y + cs - 3); ctx.lineTo(x + 3 + m, y + cs - 3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + cs - 3 - m, y + cs - 3); ctx.lineTo(x + cs - 3, y + cs - 3); ctx.lineTo(x + cs - 3, y + cs - 3 - m); ctx.stroke();
+
+      // --- RESERVOIR ---
       } else if (cell.state === "reservoir") {
         ctx.fillStyle = "#0f1a2a";
         ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
         ctx.fillStyle = "rgba(100, 150, 255, 0.12)";
         ctx.fillRect(x + 3, y + 3, cs - 6, cs - 6);
+
+      // --- SOURCE CRYSTAL ---
       } else if (cell.state === "source") {
-        // Purple cell background
         ctx.fillStyle = "rgba(198, 120, 221, 0.1)";
         ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
-
         // Pulsing diamond
         const pulse = 1.0 + 0.2 * Math.sin(now / 400);
         ctx.save();
-        ctx.shadowColor = "#c678dd";
-        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#c678dd"; ctx.shadowBlur = 15;
         ctx.fillStyle = "#c678dd";
         drawDiamond(ctx, x + cs / 2, y + cs / 2, cs / 3 * pulse);
         ctx.restore();
-
-        // Thick arrow with arrowhead
+        // Radiating particles
+        for (let i = 0; i < 6; i++) {
+          const angle = (now / 1000 + i * (Math.PI * 2 / 6)) % (Math.PI * 2);
+          const dist = (cs / 3) + (cs / 4) * Math.sin(now / 600 + i);
+          const px = (x + cs / 2) + Math.cos(angle) * dist;
+          const py = (y + cs / 2) + Math.sin(angle) * dist;
+          const alpha = 0.3 + 0.2 * Math.sin(now / 400 + i);
+          ctx.fillStyle = `rgba(198, 120, 221, ${alpha})`;
+          ctx.beginPath(); ctx.arc(px, py, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        // Arrow with arrowhead
         const [adx, ady] = DIR_OFFSETS[state.sourceExitDir];
-        const cx = x + cs / 2;
-        const cy = y + cs / 2;
-        const ax = cx + adx * cs * 0.9;
-        const ay = cy + ady * cs * 0.9;
-        ctx.strokeStyle = "rgba(198, 120, 221, 0.6)";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(ax, ay);
-        ctx.stroke();
-        // Arrowhead
+        const scx = x + cs / 2, scy = y + cs / 2;
+        const ax = scx + adx * cs * 0.9, ay = scy + ady * cs * 0.9;
+        ctx.strokeStyle = "rgba(198, 120, 221, 0.6)"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(scx, scy); ctx.lineTo(ax, ay); ctx.stroke();
         ctx.fillStyle = "rgba(198, 120, 221, 0.6)";
         ctx.beginPath();
-        if (state.sourceExitDir === 0) { // up
-          ctx.moveTo(ax, ay); ctx.lineTo(ax - 4, ay + 6); ctx.lineTo(ax + 4, ay + 6);
-        } else if (state.sourceExitDir === 1) { // right
-          ctx.moveTo(ax, ay); ctx.lineTo(ax - 6, ay - 4); ctx.lineTo(ax - 6, ay + 4);
-        } else if (state.sourceExitDir === 2) { // down
-          ctx.moveTo(ax, ay); ctx.lineTo(ax - 4, ay - 6); ctx.lineTo(ax + 4, ay - 6);
-        } else { // left
-          ctx.moveTo(ax, ay); ctx.lineTo(ax + 6, ay - 4); ctx.lineTo(ax + 6, ay + 4);
-        }
-        ctx.closePath();
-        ctx.fill();
-
-        // "START" label
+        if (state.sourceExitDir === 0) { ctx.moveTo(ax, ay); ctx.lineTo(ax - 4, ay + 6); ctx.lineTo(ax + 4, ay + 6); }
+        else if (state.sourceExitDir === 1) { ctx.moveTo(ax, ay); ctx.lineTo(ax - 6, ay - 4); ctx.lineTo(ax - 6, ay + 4); }
+        else if (state.sourceExitDir === 2) { ctx.moveTo(ax, ay); ctx.lineTo(ax - 4, ay - 6); ctx.lineTo(ax + 4, ay - 6); }
+        else { ctx.moveTo(ax, ay); ctx.lineTo(ax + 6, ay - 4); ctx.lineTo(ax + 6, ay + 4); }
+        ctx.closePath(); ctx.fill();
+        // Label
         ctx.fillStyle = "#c678dd";
         ctx.font = `bold ${Math.floor(cs / 5)}px monospace`;
         ctx.textAlign = "center";
-        ctx.fillText("START", cx, y + cs + cs / 5);
+        ctx.fillText("START", scx, y + cs + cs / 5);
+
+      // --- END CRYSTAL ---
       } else if (cell.state === "end-crystal") {
-        // Blue cell background
         ctx.fillStyle = "rgba(97, 175, 239, 0.1)";
         ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
-
-        // Pulsing diamond
         const pulse = 1.0 + 0.2 * Math.sin(now / 400);
         ctx.save();
-        ctx.shadowColor = "#61afef";
-        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#61afef"; ctx.shadowBlur = 15;
         ctx.fillStyle = "#61afef";
         drawDiamond(ctx, x + cs / 2, y + cs / 2, cs / 3 * pulse);
         ctx.restore();
-
-        // "END" label
+        // Radiating particles (blue)
+        for (let i = 0; i < 6; i++) {
+          const angle = (now / 1000 + i * (Math.PI * 2 / 6)) % (Math.PI * 2);
+          const dist = (cs / 3) + (cs / 4) * Math.sin(now / 600 + i);
+          const px = (x + cs / 2) + Math.cos(angle) * dist;
+          const py = (y + cs / 2) + Math.sin(angle) * dist;
+          const alpha = 0.3 + 0.2 * Math.sin(now / 400 + i);
+          ctx.fillStyle = `rgba(97, 175, 239, ${alpha})`;
+          ctx.beginPath(); ctx.arc(px, py, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
         ctx.fillStyle = "#61afef";
         ctx.font = `bold ${Math.floor(cs / 5)}px monospace`;
         ctx.textAlign = "center";
         ctx.fillText("END", x + cs / 2, y + cs + cs / 5);
       }
 
-      // Draw pipe
+      // --- DRAW PIPE ---
       if (cell.pipe) {
         // Replacement fade-out animation
         if (replaceAnim && replaceAnim.row === r && replaceAnim.col === c) {
@@ -637,9 +644,18 @@ function render(
           : "#4a4a6a";
         drawPipe(ctx, cell.pipe, x + cs / 2, y + cs / 2, cs, pipeColor);
 
-        if (cell.flowFilled && cell.flowProgress < 1) {
-          ctx.fillStyle = `rgba(229, 192, 123, ${0.3 * cell.flowProgress})`;
-          ctx.fillRect(x + 2, y + 2, cs - 4, cs - 4);
+        // --- FLOW ANIMATION ---
+        if (cell.flowFilled && cell.flowProgress < 1 && cell.flowEntryDir >= 0) {
+          drawFlowInPipe(ctx, cell.pipe, x + cs / 2, y + cs / 2, cs, cell.flowProgress, cell.flowEntryDir);
+        }
+
+        // Fully filled: ambient gold glow
+        if (cell.flowFilled && cell.flowProgress >= 1) {
+          ctx.save();
+          ctx.shadowColor = "#e5c07b";
+          ctx.shadowBlur = 6;
+          drawPipe(ctx, cell.pipe, x + cs / 2, y + cs / 2, cs, "rgba(229, 192, 123, 0.8)");
+          ctx.restore();
         }
       }
     }
@@ -667,24 +683,19 @@ function render(
     ctx.fillText("Replaced! (-1)", tx, ty);
   }
 
-  // Countdown overlay (before flow starts)
+  // Countdown overlay
   if (!state.flowActive && state.delayTimer > 0 && !state.gameOver) {
     const secs = Math.ceil(state.delayTimer);
     const pulse = 1.0 + 0.08 * Math.sin(now / 300);
-
     let color: string;
     if (secs <= 1) color = "#ef4444";
     else if (secs <= 3) color = "#f59e0b";
     else color = "#e5c07b";
-
     ctx.save();
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = color;
+    ctx.shadowColor = color; ctx.shadowBlur = 20; ctx.fillStyle = color;
     const fontSize = cs * 1.3 * pulse;
     ctx.font = `bold ${Math.floor(fontSize)}px monospace`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.globalAlpha = 0.85;
     ctx.fillText(`${secs}`, ox + gridW / 2, gridW / 2 - cs * 0.3);
     ctx.font = `bold ${Math.floor(cs * 0.5)}px monospace`;
@@ -698,55 +709,137 @@ function render(
   if (state.gameOver) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(ox, 0, gridW, gridW);
-
     const isComplete = state.segmentCount >= state.minSegments;
     ctx.save();
-    ctx.shadowColor = isComplete ? "#98c379" : "#ef4444";
-    ctx.shadowBlur = 15;
+    ctx.shadowColor = isComplete ? "#98c379" : "#ef4444"; ctx.shadowBlur = 15;
     ctx.fillStyle = isComplete ? "#98c379" : "#ef4444";
     ctx.font = `bold ${Math.floor(cs * 1.1)}px monospace`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(isComplete ? "COMPLETE!" : "OVERFLOW!", ox + gridW / 2, gridW / 2 - 10);
     ctx.restore();
-
     ctx.fillStyle = "#ccc";
-    ctx.font = `${Math.floor(cs * 0.5)}px monospace`;
-    ctx.textAlign = "center";
+    ctx.font = `${Math.floor(cs * 0.5)}px monospace`; ctx.textAlign = "center";
     ctx.fillText(`${state.segmentCount} segments | ${state.score} pts`, ox + gridW / 2, gridW / 2 + cs * 0.8);
   }
 }
 
 // ===== DRAW HELPERS =====
 
+function adjustBrightness(hex: string, factor: number): string {
+  if (!hex.startsWith("#") || hex.length < 7) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgb(${Math.floor(r * factor)}, ${Math.floor(g * factor)}, ${Math.floor(b * factor)})`;
+}
+
 function drawPipe(ctx: CanvasRenderingContext2D, pipe: PipeType, cx: number, cy: number, cs: number, color: string) {
   const dirs = PIPE_DRAW_DIRS[pipe];
-  const lineWidth = cs / 4;
+  const outerWidth = cs / 3.5;
+  const innerWidth = cs / 6;
 
+  // Outer pipe walls
   ctx.strokeStyle = color;
+  ctx.lineWidth = outerWidth;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (const dir of dirs) {
+    const [dx, dy] = DIR_OFFSETS[dir];
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + dx * cs * 0.9, cy + dy * cs * 0.9); ctx.stroke();
+  }
+
+  // Inner channel (darker)
+  const innerColor = adjustBrightness(color, 0.55);
+  ctx.strokeStyle = innerColor;
+  ctx.lineWidth = innerWidth;
+  for (const dir of dirs) {
+    const [dx, dy] = DIR_OFFSETS[dir];
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + dx * cs * 0.9, cy + dy * cs * 0.9); ctx.stroke();
+  }
+
+  // Center junction
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(cx, cy, outerWidth / 2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = innerColor;
+  ctx.beginPath(); ctx.arc(cx, cy, innerWidth / 2, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawFlowInPipe(
+  ctx: CanvasRenderingContext2D,
+  pipe: PipeType,
+  cx: number, cy: number, cs: number,
+  progress: number,
+  entryDir: number,
+) {
+  const lineWidth = cs / 6;
+  const exitDir = getExitDirection(pipe, entryDir);
+  if (exitDir === -1) return;
+
+  // Entry edge and exit edge positions
+  const ei = DIR_OFFSETS[entryDir];
+  const eo = DIR_OFFSETS[exitDir];
+  // Flow enters FROM entryDir, so the start point is on the entryDir side
+  // entryDir is the direction of the side the flow comes from — so the edge is opposite
+  const startX = cx - ei[0] * cs * 0.9;
+  const startY = cy - ei[1] * cs * 0.9;
+  const endX = cx + eo[0] * cs * 0.9;
+  const endY = cy + eo[1] * cs * 0.9;
+
+  // Two-segment path: start → center (first half), center → end (second half)
+  const halfProg = Math.min(progress * 2, 1);
+  const fullProg = Math.max((progress - 0.5) * 2, 0);
+
+  ctx.save();
+  ctx.shadowColor = "#e5c07b";
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = "rgba(229, 192, 123, 0.6)";
   ctx.lineWidth = lineWidth;
   ctx.lineCap = "round";
 
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(cx, cy, lineWidth / 2.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  for (const dir of dirs) {
-    const [dx, dy] = DIR_OFFSETS[dir];
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + dx * cs * 0.9, cy + dy * cs * 0.9);
-    ctx.stroke();
+  // Entry to center
+  if (halfProg > 0) {
+    const mx = startX + (cx - startX) * halfProg;
+    const my = startY + (cy - startY) * halfProg;
+    ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(mx, my); ctx.stroke();
   }
+
+  // Center to exit
+  if (fullProg > 0) {
+    const mx = cx + (endX - cx) * fullProg;
+    const my = cy + (endY - cy) * fullProg;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(mx, my); ctx.stroke();
+  }
+
+  // Leading edge (bright white/gold point)
+  if (progress < 1) {
+    let leadX: number, leadY: number;
+    if (progress <= 0.5) {
+      const t = progress * 2;
+      leadX = startX + (cx - startX) * t;
+      leadY = startY + (cy - startY) * t;
+    } else {
+      const t = (progress - 0.5) * 2;
+      leadX = cx + (endX - cx) * t;
+      leadY = cy + (endY - cy) * t;
+    }
+
+    // Bright core
+    ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(leadX, leadY, lineWidth / 2, 0, Math.PI * 2); ctx.fill();
+
+    // Outer glow ring
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(229, 192, 123, 0.4)";
+    ctx.beginPath(); ctx.arc(leadX, leadY, lineWidth, 0, Math.PI * 2); ctx.fill();
+  }
+
+  ctx.restore();
 }
 
 function drawDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
   ctx.beginPath();
-  ctx.moveTo(cx, cy - size);
-  ctx.lineTo(cx + size, cy);
-  ctx.lineTo(cx, cy + size);
-  ctx.lineTo(cx - size, cy);
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(cx, cy - size); ctx.lineTo(cx + size, cy);
+  ctx.lineTo(cx, cy + size); ctx.lineTo(cx - size, cy);
+  ctx.closePath(); ctx.fill();
 }

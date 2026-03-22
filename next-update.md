@@ -1,193 +1,411 @@
-# Feature Request: Game Lobby Instructions & Arcane Conduit Tuning
+# Visual Polish: Arcane Conduit — Blocked Cells & Flow Animation
 
 **Repo**: https://github.com/NoahAlbers/depth-divers-site
 
----
+The Arcane Conduit game needs a significant visual polish pass. The two biggest issues are that blocked cells are hard to distinguish from empty cells, and the "flow" of arcane energy through pipes doesn't look or feel like flowing energy. This document addresses both.
 
-## 1. Game Lobby — "How to Play" Instructions Screen
-
-Before every game starts, after players join the lobby and before the DM hits "Start," each player should see a **"How to Play" instructions screen** on their device. This screen teaches them the game before they're thrown into it.
-
-### Layout
-
-When a player joins a game lobby, their screen shows:
-
-```
-┌──────────────────────────────────┐
-│  [Game Icon]  ARCANE CONDUIT     │
-│  Category: Puzzle | ~2-5 min     │
-├──────────────────────────────────┤
-│                                  │
-│  HOW TO PLAY                     │
-│                                  │
-│  [Visual diagrams / examples]    │
-│  [Step-by-step rules]            │
-│                                  │
-│  YOUR STAT BONUS                 │
-│  [Skill info + their bonus]      │
-│                                  │
-├──────────────────────────────────┤
-│  Waiting for DM to start...      │
-│  Players ready: 4/6              │
-│  [✓ Ready]                       │
-└──────────────────────────────────┘
-```
-
-### Contents (Per Game)
-
-Each game has a custom instructions screen with:
-
-1. **Game name, icon, and category** at the top
-2. **Goal**: One sentence explaining what they're trying to do. Bold and clear.
-3. **How it works**: 3-5 bullet points explaining the core mechanic. Keep it short — players won't read paragraphs.
-4. **Visual guide**: Game-specific diagrams or illustrations showing key concepts. This is the most important part — show, don't tell.
-5. **Scoring**: How they earn points / how the winner is determined.
-6. **Stat influence**: Which skill/ability affects their difficulty, what their current bonus is, and what it does for them. Example: "Your Arcana bonus (+5) gives you a slightly longer setup time and an extra piece in the queue."
-7. **Difficulty**: The current difficulty setting and what it means for this game.
-
-### Arcane Conduit Instructions (Example)
-
-**Goal:** Build a pipeline of arcane conduits to channel magical energy as far as possible before it overflows.
-
-**How it works:**
-- Pipe pieces appear in a queue on the left. Tap any cell on the grid to place the next piece.
-- After a short delay, arcane energy begins flowing from the **source crystal** (purple diamond ◆).
-- The energy flows through connected pipes. Keep building ahead of it!
-- If the energy reaches an open pipe end with nowhere to go — overflow. Game over.
-- Reach the minimum segment count to succeed. More segments = more points.
-
-**Visual guide:**
-- Show all 7 pipe types with labels: "Straight ═", "Corner ╗", "Cross ╬ (bonus points!)"
-- Show the source crystal icon with an arrow indicating flow direction: "Energy flows FROM here"
-- Show the end crystal icon (if Hard): "Energy must reach HERE"
-- Show a mini example of 4-5 connected pipes with arrows showing flow direction
-- Show what "replacing" a pipe looks like: "Tap an unused pipe to replace it (-1 point penalty)"
-
-**Scoring:** +1 per segment, +3 per cross used twice, -1 per replaced pipe. Reach [X] segments to complete.
-
-**Your stat bonus:** "Arcana (+5) → Longer setup delay before energy starts flowing, extra queue visibility"
-
-### Instructions for Other Games
-
-Each game needs its own instructions screen. Key visual elements per game:
-
-**Rune Echoes:** Show the rune grid, an example flash sequence with arrows, and "repeat the pattern"
-
-**Glyph Race:** Show example puzzle types (math cipher, pattern match) with a sample and solution
-
-**Stalactite Storm:** Show the player character, falling obstacles, and left/right movement controls
-
-**Spider Swat:** Show spider types with point values, especially highlight the mushroom penalty
-
-**Lockpicking:** Show the maze, the pick dot, walls, and the "3 strikes" mechanic
-
-**Stealth Sequence:** Show the grid, a guard with vision cone, the beat indicator, and safe vs dangerous cells
-
-**Drinking Contest:** Show the oscillating marker, the sweet spot zone, and what happens as rounds progress
-
-**Defuse the Glyph:** Explain that each player sees different info, they must talk to solve it, and show a simplified example of how clues connect
-
-**Underdark Telephone:** Show the write → draw → write → draw cycle with a funny example
-
-### Implementation
-
-- Create a `GameInstructions` component that takes a `gameId` and renders the appropriate instructions
-- Each game's instructions are defined as a config object with text, visual elements, and stat info
-- The visual guides can be simple inline SVGs, styled divs, or small canvas renders — they don't need to be elaborate, just clear
-- The instructions screen is shown in the game lobby view (`/games/[sessionId]`) before the DM starts the game
-- Players can scroll through the instructions while waiting
-- Once the DM hits "Start," the instructions screen transitions to the actual game
+Reference the current component code in `components/games/arcane-conduit.tsx` and the game logic in `lib/games/arcane-conduit.ts`.
 
 ---
 
-## 2. Arcane Conduit — Tuning Fixes
+## 1. Blocked Cells — Much More Obvious
 
-The current Arcane Conduit has several playability issues based on testing. Apply these fixes:
+### Current Problem
+Blocked cells use a slightly different shade of dark (`#1a1a2a` vs `#12121e`) with faint crack lines. On most screens, they're nearly indistinguishable from empty cells, especially on mobile. Players place pipes on what they think are empty cells only to realize they're blocked.
 
-### 2a. Flow Starts Way Too Fast
+### Fix: Make Blocked Cells Visually Unmistakable
 
-The initial delay before flow starts is too short, especially for players who've never played before. They barely have time to understand the grid before energy is flowing.
+Replace the current subtle dark fill + crack lines with a much more distinct treatment:
 
-**Fix — Increase initial delays significantly:**
-- Easy: **15 seconds** (was 8s)
-- Medium: **10 seconds** (was 5s)  
-- Hard: **6 seconds** (was 3s)
+**Visual Design:**
+- Fill the cell with a **clearly different texture** — a crosshatch/hash pattern in a muted reddish-brown (`#2a1a1a`) that reads as "rubble" or "collapsed stone"
+- Draw an **X pattern** across the cell using thick strokes — two diagonal lines corner to corner in `#3a2020`
+- Add small **debris dots** scattered in the cell (4-6 small circles of varying sizes in `#2a1515` to `#3a2525`)
+- The overall look should be: dark reddish rubble that clearly says "you can't build here"
+- Add a subtle dark **inner border/inset** (2px) to make the cell appear recessed/sunken compared to empty cells
 
-Additionally, add a **visual countdown** that's prominent on screen during the delay:
-- Large text in the center of the grid: "FLOW STARTS IN 12..." counting down
-- The text should pulse and change color in the last 3 seconds (gold → orange → red)
-- This gives players a clear sense of urgency and how much prep time they have left
+**Rendering code replacement:**
 
-### 2b. Flow Speed Too Fast in Early Segments
-
-Even after the delay, the flow moves too quickly for new players to build ahead of it.
-
-**Fix — Slower initial flow speed, gradual ramp:**
-- Easy: **3.0 seconds** per segment for the first 5 segments, then gradually speed up to 2.0s by segment 15
-- Medium: **2.5 seconds** per segment for the first 5 segments, ramping to 1.5s by segment 15
-- Hard: **2.0 seconds** per segment for the first 3 segments, ramping to 1.0s by segment 12
-
-Use a smooth interpolation rather than a sudden jump:
 ```typescript
-function getFlowSpeed(difficulty: string, segmentCount: number): number {
-  const configs = {
-    easy: { start: 3.0, end: 1.8, rampSegments: 15 },
-    medium: { start: 2.5, end: 1.3, rampSegments: 15 },
-    hard: { start: 2.0, end: 0.8, rampSegments: 12 },
-  };
-  const c = configs[difficulty];
-  const t = Math.min(segmentCount / c.rampSegments, 1);
-  return c.start + (c.end - c.start) * t; // Linear interpolation
+// Replace the current blocked cell rendering with:
+if (cell.state === "blocked") {
+  // Dark reddish rubble fill
+  ctx.fillStyle = "#1e1215";
+  ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
+  
+  // Crosshatch pattern
+  ctx.strokeStyle = "#2d1a1a";
+  ctx.lineWidth = 2;
+  
+  // X pattern
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y + 4);
+  ctx.lineTo(x + cs - 4, y + cs - 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + cs - 4, y + 4);
+  ctx.lineTo(x + 4, y + cs - 4);
+  ctx.stroke();
+  
+  // Additional hash lines for texture
+  const step = cs / 4;
+  ctx.strokeStyle = "#251515";
+  ctx.lineWidth = 1;
+  for (let i = step; i < cs; i += step) {
+    ctx.beginPath();
+    ctx.moveTo(x + i, y + 1);
+    ctx.lineTo(x + i, y + cs - 1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 1, y + i);
+    ctx.lineTo(x + cs - 1, y + i);
+    ctx.stroke();
+  }
+  
+  // Debris dots
+  ctx.fillStyle = "#3a2222";
+  const debrisPositions = [
+    [0.3, 0.25], [0.7, 0.35], [0.45, 0.6], [0.2, 0.75], [0.65, 0.8], [0.5, 0.4]
+  ];
+  for (const [dx, dy] of debrisPositions) {
+    const radius = 1 + Math.random() * 1.5; // Use seeded random if needed for consistency
+    ctx.beginPath();
+    ctx.arc(x + cs * dx, y + cs * dy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Inner border (recessed look)
+  ctx.strokeStyle = "#0a0608";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 1, y + 1, cs - 2, cs - 2);
 }
 ```
 
-### 2c. Source and End Crystals Not Obvious Enough
-
-Players don't immediately understand where energy flows from or where it needs to go.
-
-**Fix — Make source and destination much more visually prominent:**
-
-**Source crystal:**
-- Larger pulsing animation (scale 1.0 → 1.2 → 1.0, repeating)
-- Radiating particle effect — small glowing dots emanating outward from the crystal
-- A clear **arrow** pointing in the flow direction, extending from the crystal into the adjacent cell
-- Label text above or below: "START" in small purple text
-- The source cell's background should have a faint purple glow
-
-**End crystal (Hard difficulty):**
-- Same pulsing treatment but in blue
-- Radiating particles in blue
-- Label: "END" in small blue text  
-- The end cell's background should have a faint blue glow
-- A subtle dotted line or breadcrumb trail could hint at the general direction (not the exact path) from source to end
-
-**First-time hint:**
-- On the very first beat (before flow starts), briefly flash the cells adjacent to the source crystal that could receive flow, with a pulsing highlight and text: "Build pipes starting here →"
-- This disappears after 3 seconds or when the player places their first pipe
-
-### 2d. Queue Not Obvious Enough
-
-The queue on the left side is easy to miss, especially on mobile.
-
-**Fix:**
-- The next piece in the queue should be **larger** and more prominently highlighted (current implementation does this but increase the size differential — next piece should be ~80% of cell size, others ~40%)
-- Add a small animated arrow pointing from the next piece toward the grid: "Place this →"
-- The queue label "NEXT" should be more prominent — slightly larger font, gold color
-- On mobile, consider placing the queue **below** the grid instead of to the left (since vertical space is more available than horizontal on phones). Detect orientation/screen width and adjust layout.
-
-### 2e. Replacing Pipes Not Discoverable
-
-Players don't realize they can overwrite unused pipes.
-
-**Fix:**
-- In the instructions screen (Section 1), explicitly show this mechanic with a visual
-- When a player taps a cell that already has an unused pipe, show a brief toast/hint the first time: "Pipe replaced! (-1 point)" — only show this hint once per game session
-- The replaced pipe should have a brief visual effect (the old pipe fades out, new pipe fades in) to make the replacement feel intentional, not like a misclick
+**Additionally:**
+- When a player hovers over a blocked cell, do NOT show the ghost pipe preview (this is already handled but verify it)
+- If a player taps a blocked cell, show a brief red flash on that cell and optionally a tiny text "Blocked" that fades out in 0.5s — this provides feedback that the tap was registered but the cell is unusable
 
 ---
 
-## Implementation Priority
+## 2. Flow Animation — Visible Arcane Energy Moving Through Pipes
 
-1. **Arcane Conduit tuning** (2a-2e) — immediate playability improvements
-2. **Game lobby instructions screen** — component structure + Arcane Conduit instructions first
-3. **Instructions for remaining games** — fill in each game's instructions using the same component
+### Current Problem
+The "flow" is represented only by a color change on the pipe (from gray `#4a4a6a` to purple `#c678dd` to gold `#e5c07b`) and a faint fill rectangle. It doesn't look like energy flowing — it looks like a static color swap. There's no sense of movement, direction, or liquid-like behavior.
+
+### Fix: Animated Energy Flow Through Pipe Channels
+
+The flow should look like **glowing arcane energy traveling through the pipe channels** — a visible leading edge that moves through the pipe from entry to exit, leaving a glowing trail behind it.
+
+**Concept:**
+- Each pipe segment that the flow is currently filling should show the energy **moving directionally** from the entry side to the exit side
+- The energy is a bright glowing line that traces the pipe's path (following the same lines the pipe draws, but thinner and brighter)
+- Behind the leading edge, a filled glow remains (the pipe stays "lit up" after the energy has passed through)
+- The leading edge has a bright white/gold core with a purple/gold outer glow
+
+**Implementation — Per-Cell Flow Rendering:**
+
+Each cell in the grid that has `flowFilled: true` tracks `flowProgress` (0 to 1) and `flowEntryDir` / `flowExitDir`. Use these to draw the animated flow:
+
+```typescript
+function drawFlowInPipe(
+  ctx: CanvasRenderingContext2D,
+  pipe: PipeType,
+  cx: number, cy: number, cs: number,
+  progress: number, // 0 to 1
+  entryDir: number, // 0=up, 1=right, 2=down, 3=left
+) {
+  const dirs = PIPE_DRAW_DIRS[pipe];
+  const lineWidth = cs / 6; // Slightly thinner than pipe walls
+  
+  // Determine the path the energy takes through this pipe
+  // For straight/corner pipes: entry side → center → exit side
+  // For cross pipes: entry side → center → exit side (straight through)
+  
+  const entryOffset = DIR_OFFSETS[entryDir];
+  // Find exit direction (the other connection that isn't the entry)
+  const exitDir = dirs.find(d => d !== ((entryDir + 2) % 4)) ?? dirs[0];
+  const exitOffset = DIR_OFFSETS[exitDir];
+  
+  // Path: edge of entry → center → edge of exit
+  const startX = cx + entryOffset[0] * cs * 0.9 * -1; // Invert because entry comes FROM that direction
+  const startY = cy + entryOffset[1] * cs * 0.9 * -1;
+  const endX = cx + exitOffset[0] * cs * 0.9;
+  const endY = cy + exitOffset[1] * cs * 0.9;
+  
+  // Draw the filled portion (0 to progress)
+  // For corners, the path goes: start → center → end
+  // We'll draw two segments and clip based on progress
+  
+  const halfProg = Math.min(progress * 2, 1); // First half: entry → center
+  const fullProg = Math.max((progress - 0.5) * 2, 0); // Second half: center → exit
+  
+  // Glow trail (already passed through)
+  ctx.save();
+  ctx.shadowColor = "#e5c07b";
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = "rgba(229, 192, 123, 0.6)";
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+  
+  // Entry to center
+  if (halfProg > 0) {
+    const mx = startX + (cx - startX) * halfProg;
+    const my = startY + (cy - startY) * halfProg;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(mx, my);
+    ctx.stroke();
+  }
+  
+  // Center to exit  
+  if (fullProg > 0) {
+    const mx = cx + (endX - cx) * fullProg;
+    const my = cy + (endY - cy) * fullProg;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(mx, my);
+    ctx.stroke();
+  }
+  
+  // Leading edge (bright white/gold point)
+  if (progress < 1) {
+    let leadX: number, leadY: number;
+    if (progress <= 0.5) {
+      const t = progress * 2;
+      leadX = startX + (cx - startX) * t;
+      leadY = startY + (cy - startY) * t;
+    } else {
+      const t = (progress - 0.5) * 2;
+      leadX = cx + (endX - cx) * t;
+      leadY = cy + (endY - cy) * t;
+    }
+    
+    // Bright leading point
+    ctx.shadowColor = "#ffffff";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(leadX, leadY, lineWidth / 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Outer glow ring
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(229, 192, 123, 0.4)";
+    ctx.beginPath();
+    ctx.arc(leadX, leadY, lineWidth, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.restore();
+}
+```
+
+**Integration with existing render:**
+
+In the main `render` function, after drawing the pipe structure, add the flow overlay:
+
+```typescript
+// After drawing the pipe itself
+if (cell.pipe && cell.flowFilled) {
+  drawFlowInPipe(
+    ctx, cell.pipe, 
+    x + cs / 2, y + cs / 2, cs,
+    cell.flowProgress,
+    cell.flowEntryDir // Need to track this in game state
+  );
+}
+
+// For fully filled pipes (progress = 1), draw a steady golden glow
+if (cell.pipe && cell.flowFilled && cell.flowProgress >= 1) {
+  // The pipe is already colored gold — add a subtle ambient glow
+  ctx.save();
+  ctx.shadowColor = "#e5c07b";
+  ctx.shadowBlur = 6;
+  // Redraw the pipe lines with glow
+  drawPipe(ctx, cell.pipe, x + cs / 2, y + cs / 2, cs, "rgba(229, 192, 123, 0.8)");
+  ctx.restore();
+}
+```
+
+**Game state change needed:**
+
+The `ArcaneConduitState` grid cells need to track which direction the flow entered from. Add `flowEntryDir: number` to the cell type in `lib/games/arcane-conduit.ts`. When the flow enters a cell, record the direction it came from. This is needed to correctly animate the flow path through corners and crosses.
+
+If modifying the game state type is complex, an alternative is to infer the entry direction from the previous cell in the flow path — look at where the previous filled cell is relative to this one.
+
+---
+
+## 3. Pipe Visual Improvements
+
+### Thicker, More Distinct Pipe Walls
+
+The current pipes are drawn as simple lines from center to edge. Make them look more like actual conduits:
+
+```typescript
+function drawPipe(ctx: CanvasRenderingContext2D, pipe: PipeType, cx: number, cy: number, cs: number, color: string) {
+  const dirs = PIPE_DRAW_DIRS[pipe];
+  const outerWidth = cs / 3.5;  // Outer pipe wall
+  const innerWidth = cs / 6;    // Inner channel (where energy flows)
+  
+  // Draw outer pipe (darker border)
+  ctx.strokeStyle = color;
+  ctx.lineWidth = outerWidth;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  
+  for (const dir of dirs) {
+    const [dx, dy] = DIR_OFFSETS[dir];
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + dx * cs * 0.9, cy + dy * cs * 0.9);
+    ctx.stroke();
+  }
+  
+  // Draw inner channel (slightly lighter, gives a "hollow pipe" look)
+  const innerColor = adjustBrightness(color, 0.6); // Darker inner channel
+  ctx.strokeStyle = innerColor;
+  ctx.lineWidth = innerWidth;
+  
+  for (const dir of dirs) {
+    const [dx, dy] = DIR_OFFSETS[dir];
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + dx * cs * 0.9, cy + dy * cs * 0.9);
+    ctx.stroke();
+  }
+  
+  // Center junction (where pipes meet)
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(cx, cy, outerWidth / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = innerColor;
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerWidth / 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Helper to darken a hex color
+function adjustBrightness(hex: string, factor: number): string {
+  if (hex.startsWith("rgba")) return hex; // Skip rgba colors
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgb(${Math.floor(r * factor)}, ${Math.floor(g * factor)}, ${Math.floor(b * factor)})`;
+}
+```
+
+This gives each pipe a two-tone look: darker outer walls with a lighter inner channel. When the flow fills the pipe, the inner channel lights up gold while the outer walls remain the pipe color — creating a clear visual of energy flowing through a conduit.
+
+---
+
+## 4. Empty Cell vs Buildable Cell Distinction
+
+Empty cells where the player CAN place pipes should be subtly different from the general grid background, making it clearer where building is possible.
+
+**Fix:**
+- Empty buildable cells: fill with `#14142a` (slightly lighter than the grid background `#12121e`)
+- Add a very faint dotted border or corner marks to buildable cells to suggest they're "slots" waiting for pipes
+- This creates three clearly distinct cell states visible at a glance:
+  - **Buildable** (empty): Slightly lighter with subtle corner marks — "you can build here"
+  - **Blocked** (rubble): Reddish crosshatch — "you can't build here" 
+  - **Pipe placed**: Shows the pipe structure — "already built"
+
+```typescript
+// For empty buildable cells
+if (cell.state === "empty" && !cell.pipe) {
+  // Slightly lighter fill
+  ctx.fillStyle = "#14142a";
+  ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
+  
+  // Corner marks (subtle "slot" indicator)
+  const markLen = cs / 5;
+  ctx.strokeStyle = "#1e1e38";
+  ctx.lineWidth = 1;
+  // Top-left
+  ctx.beginPath();
+  ctx.moveTo(x + 3, y + 3 + markLen);
+  ctx.lineTo(x + 3, y + 3);
+  ctx.lineTo(x + 3 + markLen, y + 3);
+  ctx.stroke();
+  // Top-right
+  ctx.beginPath();
+  ctx.moveTo(x + cs - 3 - markLen, y + 3);
+  ctx.lineTo(x + cs - 3, y + 3);
+  ctx.lineTo(x + cs - 3, y + 3 + markLen);
+  ctx.stroke();
+  // Bottom-left
+  ctx.beginPath();
+  ctx.moveTo(x + 3, y + cs - 3 - markLen);
+  ctx.lineTo(x + 3, y + cs - 3);
+  ctx.lineTo(x + 3 + markLen, y + cs - 3);
+  ctx.stroke();
+  // Bottom-right
+  ctx.beginPath();
+  ctx.moveTo(x + cs - 3 - markLen, y + cs - 3);
+  ctx.lineTo(x + cs - 3, y + cs - 3);
+  ctx.lineTo(x + cs - 3, y + cs - 3 - markLen);
+  ctx.stroke();
+}
+```
+
+---
+
+## 5. Source Crystal — Particle Effects
+
+Add radiating particles around the source crystal to make it unmissable:
+
+```typescript
+// After drawing the source diamond, add particles
+if (cell.state === "source") {
+  // ... existing diamond and arrow code ...
+  
+  // Radiating particles
+  const particleCount = 6;
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (now / 1000 + i * (Math.PI * 2 / particleCount)) % (Math.PI * 2);
+    const dist = (cs / 3) + (cs / 4) * Math.sin(now / 600 + i);
+    const px = (x + cs / 2) + Math.cos(angle) * dist;
+    const py = (y + cs / 2) + Math.sin(angle) * dist;
+    const alpha = 0.3 + 0.2 * Math.sin(now / 400 + i);
+    
+    ctx.fillStyle = `rgba(198, 120, 221, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Same for end crystal but in blue
+if (cell.state === "end-crystal") {
+  const particleCount = 6;
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (now / 1000 + i * (Math.PI * 2 / particleCount)) % (Math.PI * 2);
+    const dist = (cs / 3) + (cs / 4) * Math.sin(now / 600 + i);
+    const px = (x + cs / 2) + Math.cos(angle) * dist;
+    const py = (y + cs / 2) + Math.sin(angle) * dist;
+    const alpha = 0.3 + 0.2 * Math.sin(now / 400 + i);
+    
+    ctx.fillStyle = `rgba(97, 175, 239, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+```
+
+---
+
+## Summary of Visual Changes
+
+| Element | Before | After |
+|---------|--------|-------|
+| Blocked cells | Faint dark shade + thin cracks | Reddish crosshatch + X pattern + debris + recessed border |
+| Empty cells | Same as grid background | Slightly lighter + corner slot marks |
+| Pipe walls | Single-color lines | Two-tone: outer walls + inner channel |
+| Flow (in progress) | Color change + faint fill rect | Animated leading edge with white glow traveling through pipe channel |
+| Flow (complete) | Gold color swap | Gold glow with ambient shadow on inner channel |
+| Source crystal | Pulsing diamond + arrow | Pulsing diamond + thick arrow + radiating particles + "START" label |
+| End crystal | Pulsing diamond | Pulsing diamond + radiating particles + "END" label |
+
+The overall effect should make the game feel like you're channeling actual magical energy through crystalline conduits carved into stone — not just connecting abstract lines on a grid.
