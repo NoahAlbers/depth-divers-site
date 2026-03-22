@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePlayer } from "@/lib/player-context";
 import { POLL_INTERVAL_MS } from "@/lib/players";
-import { getGameById } from "@/lib/games/registry";
+import { getGameById, type GameDefinition } from "@/lib/games/registry";
 import { GameLobby } from "@/components/games/game-lobby";
 import { GameLeaderboard } from "@/components/games/game-leaderboard";
 import { ArcaneConduit } from "@/components/games/arcane-conduit";
@@ -15,6 +15,8 @@ import { Lockpicking } from "@/components/games/lockpicking";
 import { DrinkingContest } from "@/components/games/drinking-contest";
 import { StealthSequence } from "@/components/games/stealth-sequence";
 import { DefuseTheGlyph } from "@/components/games/defuse-the-glyph";
+import { UnderdarkTelephone } from "@/components/games/underdark-telephone";
+import { getPlayerColor } from "@/lib/players";
 import { useParams } from "next/navigation";
 
 interface GameResult {
@@ -33,6 +35,8 @@ interface SessionData {
   seed: number | null;
   players: string[];
   results: GameResult[];
+  config: Record<string, unknown>;
+  currentRound: number;
 }
 
 interface SessionResponse {
@@ -152,6 +156,27 @@ export default function GameSessionPage() {
 
   // FINISHED
   if (session.status === "finished") {
+    // Underdark Telephone finished → show reveal view for all players
+    if (session.gameId === "underdark-telephone") {
+      return (
+        <div>
+          <h1 className="mb-6 font-cinzel text-3xl font-bold text-gold">
+            Underdark Telephone — Reveal
+          </h1>
+          <UnderdarkTelephone
+            seed={session.seed || 0}
+            difficulty={session.difficulty as "easy" | "medium" | "hard"}
+            timeLimit={0}
+            onComplete={() => {}}
+            config={session.config}
+            sessionId={session.id}
+            players={session.players}
+            playerName={playerName || ""}
+          />
+        </div>
+      );
+    }
+
     return (
       <div>
         <h1 className="mb-6 font-cinzel text-3xl font-bold text-gold">
@@ -168,6 +193,19 @@ export default function GameSessionPage() {
 
   // ACTIVE — DM sees leaderboard updating live
   if (effectiveIsDM) {
+    // Special DM view for Underdark Telephone
+    if (session.gameId === "underdark-telephone") {
+      return (
+        <UnderdarkTelephoneDMView
+          session={session}
+          game={game}
+          dmHeaders={dmHeaders}
+          onEnd={handleEnd}
+          onRefresh={fetchSession}
+        />
+      );
+    }
+
     return (
       <div>
         <h1 className="mb-4 font-cinzel text-3xl font-bold text-gold">
@@ -241,6 +279,7 @@ export default function GameSessionPage() {
     difficulty: session.difficulty as "easy" | "medium" | "hard",
     timeLimit: session.timeLimit,
     onComplete: handleComplete,
+    config: session.config || {},
   };
 
   return (
@@ -257,9 +296,140 @@ export default function GameSessionPage() {
       {session.gameId === "drinking-contest" && <DrinkingContest {...gameProps} />}
       {session.gameId === "stealth-sequence" && <StealthSequence {...gameProps} />}
       {session.gameId === "defuse-the-glyph" && <DefuseTheGlyph {...gameProps} />}
-      {!["arcane-conduit", "rune-echoes", "glyph-race", "stalactite-storm", "spider-swat", "lockpicking", "drinking-contest", "stealth-sequence", "defuse-the-glyph"].includes(session.gameId) && (
+      {session.gameId === "underdark-telephone" && (
+        <UnderdarkTelephone
+          {...gameProps}
+          sessionId={session.id}
+          players={session.players}
+          playerName={playerName || ""}
+        />
+      )}
+      {!["arcane-conduit", "rune-echoes", "glyph-race", "stalactite-storm", "spider-swat", "lockpicking", "drinking-contest", "stealth-sequence", "defuse-the-glyph", "underdark-telephone"].includes(session.gameId) && (
         <p className="text-red-400">Unknown game: &quot;{session.gameId}&quot;</p>
       )}
+    </div>
+  );
+}
+
+// ===== DM View for Underdark Telephone =====
+
+function UnderdarkTelephoneDMView({
+  session,
+  game,
+  dmHeaders,
+  onEnd,
+  onRefresh,
+}: {
+  session: SessionData;
+  game: GameDefinition | undefined;
+  dmHeaders: () => Record<string, string>;
+  onEnd: () => void;
+  onRefresh: () => void;
+}) {
+  const [roundInfo, setRoundInfo] = useState<{
+    currentRound: number;
+    totalRounds: number;
+    roundType: string;
+    submittedPlayers: string[];
+    totalPlayers: number;
+    isReveal: boolean;
+  } | null>(null);
+
+  const fetchRoundStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/games/${session.id}/round-status`);
+      if (res.ok) {
+        setRoundInfo(await res.json());
+      }
+    } catch {}
+  }, [session.id]);
+
+  useEffect(() => {
+    fetchRoundStatus();
+    const interval = setInterval(fetchRoundStatus, 2500);
+    return () => clearInterval(interval);
+  }, [fetchRoundStatus]);
+
+  const handleAdvanceRound = async () => {
+    await fetch(`/api/games/${session.id}/advance-round`, {
+      method: "POST",
+      headers: dmHeaders(),
+    });
+    fetchRoundStatus();
+    onRefresh();
+  };
+
+  return (
+    <div>
+      <h1 className="mb-4 font-cinzel text-3xl font-bold text-gold">
+        {game?.name || session.gameId} — DM Dashboard
+      </h1>
+
+      <div className="mb-4 flex flex-wrap gap-3">
+        <span className="rounded bg-green-900/30 px-2 py-1 text-xs font-bold text-green-400">
+          ACTIVE
+        </span>
+        {roundInfo && (
+          <>
+            <span className="rounded bg-purple-900/30 px-2 py-1 text-xs text-purple-300">
+              Round {roundInfo.currentRound + 1}/{roundInfo.totalRounds}
+            </span>
+            <span className="rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">
+              {roundInfo.roundType === "write" ? "Writing" : "Drawing"}
+            </span>
+          </>
+        )}
+      </div>
+
+      {/* Player progress */}
+      {roundInfo && (
+        <div className="mb-4 rounded border border-border bg-surface p-3">
+          <p className="mb-2 text-xs font-bold text-gray-400">
+            Submissions: {roundInfo.submittedPlayers.length}/{roundInfo.totalPlayers}
+          </p>
+          <div className="mb-2 h-1.5 rounded-full bg-gray-700">
+            <div
+              className="h-full rounded-full bg-gold transition-all"
+              style={{
+                width: `${roundInfo.totalPlayers > 0 ? (roundInfo.submittedPlayers.length / roundInfo.totalPlayers) * 100 : 0}%`,
+              }}
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {session.players.map((p) => (
+              <span
+                key={p}
+                className={`rounded px-2 py-0.5 text-xs font-bold ${
+                  roundInfo.submittedPlayers.includes(p)
+                    ? "bg-green-900/30 text-green-400"
+                    : "bg-gray-800 text-gray-500"
+                }`}
+                style={{ borderLeft: `3px solid ${getPlayerColor(p)}` }}
+              >
+                {p} {roundInfo.submittedPlayers.includes(p) && "✓"}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleAdvanceRound}
+          className="rounded bg-purple-600 px-4 py-2 text-sm font-bold text-white hover:bg-purple-500"
+        >
+          {roundInfo && roundInfo.submittedPlayers.length < roundInfo.totalPlayers
+            ? "Force Advance (skip missing)"
+            : "Advance Round"}
+        </button>
+        <button
+          onClick={onEnd}
+          className="rounded border border-red-500/30 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
+        >
+          End Game
+        </button>
+      </div>
     </div>
   );
 }

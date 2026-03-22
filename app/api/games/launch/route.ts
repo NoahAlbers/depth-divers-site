@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { gameId, difficulty, timeLimit } = await request.json();
+  const { gameId, difficulty, timeLimit, config } = await request.json();
 
   if (!gameId) {
     return NextResponse.json({ error: "gameId required" }, { status: 400 });
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
       gameId,
       difficulty: difficulty || "medium",
       timeLimit: timeLimit || game.defaultTimeLimit,
+      config: config ? JSON.stringify(config) : "{}",
       status: "lobby",
     },
   });

@@ -13,6 +13,7 @@ export async function GET() {
           ...session,
           players: JSON.parse(session.players),
           results: JSON.parse(session.results),
+          config: JSON.parse(session.config),
         }
       : null,
     lastUpdated: new Date().toISOString(),

@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { usePlayer } from "@/lib/player-context";
 import { PLAYERS, getPlayerColor, POLL_INTERVAL_MS } from "@/lib/players";
-import { GAMES } from "@/lib/games/registry";
+import { GAMES, type GameDefinition, type GameConfigOption } from "@/lib/games/registry";
+import { DEFAULT_SKILL_MAPPINGS } from "@/lib/games/difficulty";
 
 interface SeatingLockData {
   locked: boolean;
@@ -657,9 +658,24 @@ interface ActiveSession {
   id: string;
   gameId: string;
   status: string;
+  difficulty: string;
   players: string[];
-  results: { playerName: string; score: number }[];
+  results: { playerName: string; score: number; metadata?: Record<string, unknown> }[];
+  currentRound: number;
+  roundData: string;
+  config: Record<string, unknown>;
 }
+
+const CATEGORY_COLORS: Record<string, string> = {
+  puzzle: "bg-blue-500/20 text-blue-300",
+  reflex: "bg-red-500/20 text-red-300",
+  memory: "bg-purple-500/20 text-purple-300",
+  race: "bg-yellow-500/20 text-yellow-300",
+  cooperative: "bg-green-500/20 text-green-300",
+  rhythm: "bg-pink-500/20 text-pink-300",
+  timing: "bg-cyan-500/20 text-cyan-300",
+  party: "bg-orange-500/20 text-orange-300",
+};
 
 function GameLauncher({
   headers,
@@ -667,8 +683,11 @@ function GameLauncher({
   headers: () => Record<string, string>;
 }) {
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
-  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [view, setView] = useState<"selection" | "config">("selection");
+  const [selectedGame, setSelectedGame] = useState<GameDefinition | null>(null);
   const [difficulty, setDifficulty] = useState("medium");
+  const [timeLimit, setTimeLimit] = useState(0);
+  const [gameConfig, setGameConfig] = useState<Record<string, unknown>>({});
   const [launching, setLaunching] = useState(false);
 
   const fetchActive = useCallback(async () => {
@@ -689,15 +708,34 @@ function GameLauncher({
     return () => clearInterval(interval);
   }, [fetchActive]);
 
+  const selectGame = (game: GameDefinition) => {
+    setSelectedGame(game);
+    setDifficulty("medium");
+    setTimeLimit(game.defaultTimeLimit);
+    // Initialize config options with defaults
+    const defaults: Record<string, unknown> = {};
+    game.configOptions?.forEach((opt) => {
+      defaults[opt.key] = opt.default;
+    });
+    setGameConfig(defaults);
+    setView("config");
+  };
+
   const handleLaunch = async () => {
     if (!selectedGame) return;
     setLaunching(true);
     await fetch("/api/games/launch", {
       method: "POST",
       headers: headers(),
-      body: JSON.stringify({ gameId: selectedGame, difficulty }),
+      body: JSON.stringify({
+        gameId: selectedGame.id,
+        difficulty,
+        timeLimit: timeLimit || undefined,
+        config: gameConfig,
+      }),
     });
     setSelectedGame(null);
+    setView("selection");
     setLaunching(false);
     fetchActive();
   };
@@ -720,102 +758,322 @@ function GameLauncher({
     fetchActive();
   };
 
+  const handleAdvanceRound = async () => {
+    if (!activeSession) return;
+    await fetch(`/api/games/${activeSession.id}/advance-round`, {
+      method: "POST",
+      headers: headers(),
+    });
+    fetchActive();
+  };
+
+  const activeGame = activeSession
+    ? GAMES.find((g) => g.id === activeSession.gameId)
+    : null;
+
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
       <h2 className="mb-3 font-cinzel text-lg font-bold text-gold">
         Game Launcher
       </h2>
 
-      {/* Active session */}
+      {/* ===== ACTIVE SESSION DASHBOARD ===== */}
       {activeSession && (
-        <div className="mb-4 rounded border border-gold/30 bg-gold/5 p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold text-gold">
-                {GAMES.find((g) => g.id === activeSession.gameId)?.name || activeSession.gameId}
+        <div>
+          {/* Header */}
+          <div className="mb-3 flex items-center gap-3">
+            <span className="text-2xl">{activeGame?.icon}</span>
+            <div className="flex-1">
+              <p className="font-bold text-gold">
+                {activeGame?.name || activeSession.gameId}
               </p>
-              <p className="text-xs text-gray-400">
-                {activeSession.status.toUpperCase()} — {activeSession.players.length} players
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {activeSession.status === "lobby" && (
-                <button
-                  onClick={handleStart}
-                  className="rounded bg-gold px-3 py-1 text-xs font-bold text-background hover:bg-[#f0d090]"
+              <div className="flex items-center gap-2">
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                    activeSession.status === "lobby"
+                      ? "bg-yellow-500/20 text-yellow-300"
+                      : activeSession.status === "active"
+                        ? "bg-green-500/20 text-green-300"
+                        : "bg-gray-500/20 text-gray-300"
+                  }`}
                 >
-                  Start
-                </button>
-              )}
-              <button
-                onClick={handleEnd}
-                className="rounded border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/10"
-              >
-                End
-              </button>
+                  {activeSession.status.toUpperCase()}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {activeSession.difficulty} | {activeSession.players.length} player{activeSession.players.length !== 1 ? "s" : ""}
+                </span>
+              </div>
             </div>
           </div>
+
+          {/* Players */}
+          {activeSession.players.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {activeSession.players.map((p) => {
+                const hasResult = activeSession.results.some((r) => r.playerName === p);
+                return (
+                  <span
+                    key={p}
+                    className={`rounded px-2 py-0.5 text-xs font-bold ${
+                      hasResult ? "bg-green-900/30 text-green-400" : "bg-gray-800 text-gray-300"
+                    }`}
+                    style={{ borderLeft: `3px solid ${getPlayerColor(p)}` }}
+                  >
+                    {p} {hasResult && "✓"}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Progress for active games */}
+          {activeSession.status === "active" && (
+            <div className="mb-3">
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="text-gray-400">Progress</span>
+                <span className="text-gray-300">
+                  {activeSession.results.length}/{activeSession.players.length} finished
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-gray-700">
+                <div
+                  className="h-full rounded-full bg-gold transition-all"
+                  style={{
+                    width: `${activeSession.players.length > 0 ? (activeSession.results.length / activeSession.players.length) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Live results */}
           {activeSession.results.length > 0 && (
-            <div className="mt-2 border-t border-gray-700 pt-2">
-              {activeSession.results.map((r) => (
-                <div key={r.playerName} className="flex items-center gap-2 text-xs">
-                  <span className="font-bold" style={{ color: getPlayerColor(r.playerName) }}>
-                    {r.playerName}
+            <div className="mb-3 rounded border border-gray-700 bg-background/50 p-2">
+              <p className="mb-1.5 text-[10px] font-bold uppercase text-gray-500">Results</p>
+              {activeSession.results.map((r, i) => (
+                <div key={r.playerName} className="flex items-center justify-between py-0.5 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-gray-500">{i + 1}.</span>
+                    <span className="font-bold" style={{ color: getPlayerColor(r.playerName) }}>
+                      {r.playerName}
+                    </span>
                   </span>
                   <span className="text-gray-400">{r.score}</span>
                 </div>
               ))}
             </div>
           )}
+
+          {/* Round info for multi-round games */}
+          {activeSession.gameId === "underdark-telephone" && activeSession.status === "active" && (
+            <div className="mb-3 rounded border border-purple-500/20 bg-purple-500/5 p-2">
+              <p className="text-xs text-purple-300">
+                Round {activeSession.currentRound + 1} — {activeSession.currentRound % 2 === 0 ? "Writing" : "Drawing"}
+              </p>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2">
+            {activeSession.status === "lobby" && (
+              <button
+                onClick={handleStart}
+                className="rounded bg-gold px-3 py-1 text-xs font-bold text-background hover:bg-[#f0d090]"
+              >
+                Start Game
+              </button>
+            )}
+            {activeSession.status === "active" && activeSession.gameId === "underdark-telephone" && (
+              <button
+                onClick={handleAdvanceRound}
+                className="rounded border border-purple-500/30 px-3 py-1 text-xs text-purple-300 hover:bg-purple-500/10"
+              >
+                Advance Round
+              </button>
+            )}
+            <button
+              onClick={handleEnd}
+              className="rounded border border-red-500/30 px-3 py-1 text-xs text-red-400 hover:bg-red-500/10"
+            >
+              End Game
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Launch new game */}
-      {!activeSession && (
+      {/* ===== GAME SELECTION GRID ===== */}
+      {!activeSession && view === "selection" && (
         <>
           <div className="mb-3 grid grid-cols-2 gap-2">
             {GAMES.map((game) => (
               <button
                 key={game.id}
-                onClick={() => setSelectedGame(game.id)}
-                className={`rounded border p-2 text-left transition-colors ${
-                  selectedGame === game.id
-                    ? "border-gold bg-gold/10"
-                    : "border-border hover:border-gray-600"
-                }`}
+                onClick={() => selectGame(game)}
+                className="rounded border border-border p-2.5 text-left transition-colors hover:border-gold/40 hover:bg-gold/5"
               >
-                <div className="text-lg">{game.icon}</div>
-                <p className="text-xs font-bold text-gray-200">{game.name}</p>
-                <p className="text-[10px] text-gray-500">{game.category}</p>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-xl">{game.icon}</span>
+                  <span className="text-xs font-bold text-gray-200">{game.name}</span>
+                </div>
+                <div className="mb-1 flex flex-wrap gap-1">
+                  <span className={`rounded px-1 py-0.5 text-[9px] font-bold ${CATEGORY_COLORS[game.category] || "bg-gray-500/20 text-gray-300"}`}>
+                    {game.category}
+                  </span>
+                  <span className="rounded bg-gray-700/50 px-1 py-0.5 text-[9px] text-gray-400">
+                    {game.minPlayers === game.maxPlayers ? `${game.minPlayers}p` : `${game.minPlayers}-${game.maxPlayers}p`}
+                  </span>
+                  <span className="rounded bg-gray-700/50 px-1 py-0.5 text-[9px] text-gray-400">
+                    {game.estimatedTime}
+                  </span>
+                </div>
+                <p className="line-clamp-2 text-[10px] leading-tight text-gray-500">
+                  {game.description}
+                </p>
+                {game.skillDisplay && (
+                  <p className="mt-1 text-[9px] text-gold/60">{game.skillDisplay}</p>
+                )}
               </button>
             ))}
           </div>
-
-          {selectedGame && (
-            <div className="flex items-center gap-2">
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-                className="rounded border border-gray-700 bg-background px-2 py-1 text-xs text-white"
-              >
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </select>
-              <button
-                onClick={handleLaunch}
-                disabled={launching}
-                className="rounded bg-gold px-3 py-1 text-xs font-bold text-background hover:bg-[#f0d090] disabled:opacity-50"
-              >
-                {launching ? "Launching..." : "Launch"}
-              </button>
-            </div>
-          )}
         </>
       )}
 
-      {!activeSession && !selectedGame && (
-        <p className="text-xs text-gray-500">Select a game to launch.</p>
+      {/* ===== GAME CONFIGURATION SCREEN ===== */}
+      {!activeSession && view === "config" && selectedGame && (
+        <div>
+          {/* Back button + game header */}
+          <button
+            onClick={() => { setView("selection"); setSelectedGame(null); }}
+            className="mb-3 text-xs text-gray-400 hover:text-gray-200"
+          >
+            ← Back to games
+          </button>
+
+          <div className="mb-3 flex items-center gap-3">
+            <span className="text-3xl">{selectedGame.icon}</span>
+            <div>
+              <p className="font-bold text-gold">{selectedGame.name}</p>
+              <div className="flex items-center gap-1.5">
+                <span className={`rounded px-1 py-0.5 text-[9px] font-bold ${CATEGORY_COLORS[selectedGame.category] || "bg-gray-500/20 text-gray-300"}`}>
+                  {selectedGame.category}
+                </span>
+                <span className="text-[10px] text-gray-400">
+                  {selectedGame.minPlayers}-{selectedGame.maxPlayers} players
+                </span>
+                <span className="text-[10px] text-gray-400">
+                  {selectedGame.estimatedTime}
+                </span>
+                {selectedGame.skillDisplay && (
+                  <span className="text-[10px] text-gold/60">{selectedGame.skillDisplay}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <p className="mb-3 text-xs text-gray-300">{selectedGame.description}</p>
+
+          {/* How to Play */}
+          <div className="mb-3 rounded border border-gray-700 bg-background/50 p-2.5">
+            <p className="mb-1.5 text-[10px] font-bold uppercase text-gray-500">How to Play</p>
+            <ul className="space-y-1">
+              {selectedGame.howToPlay.map((step, i) => (
+                <li key={i} className="flex gap-1.5 text-xs text-gray-300">
+                  <span className="text-gold/40">•</span>
+                  {step}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Difficulty selector */}
+          <div className="mb-3">
+            <p className="mb-1.5 text-[10px] font-bold uppercase text-gray-500">Difficulty</p>
+            <div className="flex gap-1.5">
+              {(["easy", "medium", "hard"] as const).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDifficulty(d)}
+                  className={`flex-1 rounded border px-2 py-1.5 text-xs font-bold capitalize transition-colors ${
+                    difficulty === d
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-gray-700 text-gray-400 hover:border-gray-500"
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[10px] text-gray-500">
+              {selectedGame.difficultyDescriptions[difficulty as "easy" | "medium" | "hard"]}
+            </p>
+          </div>
+
+          {/* Time limit (if game uses it) */}
+          {selectedGame.defaultTimeLimit > 0 && (
+            <div className="mb-3">
+              <p className="mb-1.5 text-[10px] font-bold uppercase text-gray-500">Time Limit (seconds)</p>
+              <input
+                type="number"
+                min={0}
+                value={timeLimit}
+                onChange={(e) => setTimeLimit(Number(e.target.value) || 0)}
+                className="w-24 rounded border border-gray-700 bg-background px-2 py-1 text-xs text-white"
+              />
+            </div>
+          )}
+
+          {/* Game-specific config options */}
+          {selectedGame.configOptions && selectedGame.configOptions.length > 0 && (
+            <div className="mb-3 space-y-2.5">
+              <p className="text-[10px] font-bold uppercase text-gray-500">Game Options</p>
+              {selectedGame.configOptions.map((opt) => (
+                <div key={opt.key}>
+                  <label className="mb-0.5 block text-xs text-gray-400">{opt.label}</label>
+                  {opt.type === "select" && opt.options ? (
+                    <select
+                      value={String(gameConfig[opt.key] ?? opt.default)}
+                      onChange={(e) => {
+                        const val = opt.options!.find((o) => String(o.value) === e.target.value)?.value ?? e.target.value;
+                        setGameConfig((prev) => ({ ...prev, [opt.key]: val }));
+                      }}
+                      className="rounded border border-gray-700 bg-background px-2 py-1 text-xs text-white"
+                    >
+                      {opt.options.map((o) => (
+                        <option key={String(o.value)} value={String(o.value)}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="number"
+                      min={opt.min}
+                      max={opt.max}
+                      value={Number(gameConfig[opt.key] ?? opt.default)}
+                      onChange={(e) =>
+                        setGameConfig((prev) => ({ ...prev, [opt.key]: Number(e.target.value) }))
+                      }
+                      className="w-24 rounded border border-gray-700 bg-background px-2 py-1 text-xs text-white"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Launch button */}
+          <button
+            onClick={handleLaunch}
+            disabled={launching}
+            className="w-full rounded bg-gold py-2 text-sm font-bold text-background hover:bg-[#f0d090] disabled:opacity-50"
+          >
+            {launching ? "Launching..." : "Launch Game"}
+          </button>
+        </div>
+      )}
+
+      {!activeSession && view === "selection" && (
+        <p className="text-xs text-gray-500">Select a game to configure and launch.</p>
       )}
     </div>
   );

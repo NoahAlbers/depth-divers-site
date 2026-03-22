@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isDMAuthorized } from "@/lib/dm-auth";
+import { createRoundData } from "@/lib/games/underdark-telephone";
 
 export async function POST(
   request: Request,
@@ -25,6 +26,14 @@ export async function POST(
   }
 
   const seed = Math.floor(Math.random() * 2147483647);
+  const players: string[] = JSON.parse(session.players);
+
+  // Initialize round data for multi-round games
+  const extraData: Record<string, unknown> = {};
+  if (session.gameId === "underdark-telephone") {
+    extraData.roundData = JSON.stringify(createRoundData(players));
+    extraData.currentRound = 0;
+  }
 
   const updated = await prisma.gameSession.update({
     where: { id: sessionId },
@@ -32,6 +41,7 @@ export async function POST(
       status: "active",
       seed,
       startedAt: new Date(),
+      ...extraData,
     },
   });
 

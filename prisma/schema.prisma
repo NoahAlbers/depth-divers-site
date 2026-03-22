@@ -117,17 +117,20 @@ model MessageReaction {
 // --- Games ---
 
 model GameSession {
-  id         String    @id @default(cuid())
-  gameId     String
-  status     String    @default("lobby") // "lobby", "active", "finished"
-  difficulty String    @default("medium")
-  timeLimit  Int       @default(0) // seconds, 0 = unlimited
-  seed       Int?
-  players    String    @default("[]") // JSON array of player names
-  results    String    @default("[]") // JSON array of { playerName, score, completedAt, metadata }
-  createdAt  DateTime  @default(now())
-  startedAt  DateTime?
-  endedAt    DateTime?
+  id           String    @id @default(cuid())
+  gameId       String
+  status       String    @default("lobby") // "lobby", "active", "finished"
+  difficulty   String    @default("medium")
+  timeLimit    Int       @default(0) // seconds, 0 = unlimited
+  seed         Int?
+  players      String    @default("[]") // JSON array of player names
+  results      String    @default("[]") // JSON array of { playerName, score, completedAt, metadata }
+  config       String    @default("{}") // JSON: game-specific configuration
+  currentRound Int       @default(0) // for multi-round games (e.g., Underdark Telephone)
+  roundData    String    @default("[]") // JSON: chain/round data for multi-round games
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  endedAt      DateTime?
 }
 
 // --- Link Previews ---
