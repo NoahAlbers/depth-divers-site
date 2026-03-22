@@ -1,35 +1,39 @@
 import { createRNG } from "./seeded-random";
 
-export const TICK_RATE = 1 / 60; // 60 ticks per second
+export const TICK_RATE = 1000 / 60; // ~16.67ms per tick
 export const GAME_WIDTH = 400;
 export const GAME_HEIGHT = 600;
-export const PLAYER_WIDTH = 30;
-export const PLAYER_HEIGHT = 40;
-export const PLAYER_Y = GAME_HEIGHT - 60;
+export const PLAYER_WIDTH = 24;
+export const PLAYER_HEIGHT = 36;
+export const PLAYER_Y = GAME_HEIGHT - 55;
 
-export interface Stalactite {
+export type ObstacleType = "stalactite" | "bolt" | "debris";
+
+export interface Obstacle {
   x: number;
   y: number;
   width: number;
   height: number;
-  speed: number;
+  speedY: number;
+  speedX: number; // non-zero for bolts
+  type: ObstacleType;
 }
 
 export interface GameState {
   playerX: number;
-  stalactites: Stalactite[];
+  obstacles: Obstacle[];
   survivalTime: number;
   alive: boolean;
-  spawnTimer: number;
-  difficultyMult: number;
+  spawnAccumulator: number;
+  speedMultiplier: number;
+  tickCount: number;
 }
 
 export interface DifficultyConfig {
   baseSpeed: number;
-  spawnInterval: number;
-  minGap: number;
-  stalactiteWidth: number;
-  speedRamp: number; // speed increase per second
+  spawnInterval: number; // seconds between spawns
+  speedRampPercent: number; // % increase every ramp interval
+  speedRampInterval: number; // seconds between ramp-ups
 }
 
 export function getDifficultyConfig(
@@ -37,45 +41,71 @@ export function getDifficultyConfig(
 ): DifficultyConfig {
   switch (difficulty) {
     case "easy":
-      return {
-        baseSpeed: 150,
-        spawnInterval: 1.2,
-        minGap: 80,
-        stalactiteWidth: 25,
-        speedRamp: 3,
-      };
+      return { baseSpeed: 120, spawnInterval: 1.0, speedRampPercent: 10, speedRampInterval: 15 };
     case "medium":
-      return {
-        baseSpeed: 200,
-        spawnInterval: 0.8,
-        minGap: 60,
-        stalactiteWidth: 30,
-        speedRamp: 5,
-      };
+      return { baseSpeed: 160, spawnInterval: 0.7, speedRampPercent: 12, speedRampInterval: 12 };
     case "hard":
-      return {
-        baseSpeed: 260,
-        spawnInterval: 0.5,
-        minGap: 45,
-        stalactiteWidth: 35,
-        speedRamp: 8,
-      };
+      return { baseSpeed: 200, spawnInterval: 0.45, speedRampPercent: 15, speedRampInterval: 10 };
   }
 }
 
 export function createInitialState(): GameState {
   return {
     playerX: GAME_WIDTH / 2,
-    stalactites: [],
+    obstacles: [],
     survivalTime: 0,
     alive: true,
-    spawnTimer: 0,
-    difficultyMult: 1,
+    spawnAccumulator: 0,
+    speedMultiplier: 1.0,
+    tickCount: 0,
+  };
+}
+
+function spawnObstacle(
+  rng: ReturnType<typeof createRNG>,
+  config: DifficultyConfig,
+  speedMult: number
+): Obstacle {
+  const roll = rng.next();
+  let type: ObstacleType;
+  let width: number;
+  let height: number;
+  let speedX = 0;
+
+  if (roll < 0.60) {
+    // Stalactite — falls straight down
+    type = "stalactite";
+    width = 18 + rng.nextInt(0, 14);
+    height = 24 + rng.nextInt(0, 20);
+  } else if (roll < 0.85) {
+    // Faerzress bolt — falls at an angle
+    type = "bolt";
+    width = 12 + rng.nextInt(0, 8);
+    height = 12 + rng.nextInt(0, 8);
+    speedX = (rng.next() > 0.5 ? 1 : -1) * (40 + rng.nextInt(0, 60)) * speedMult;
+  } else {
+    // Cave debris — wider
+    type = "debris";
+    width = 40 + rng.nextInt(0, 30);
+    height = 16 + rng.nextInt(0, 10);
+  }
+
+  const x = rng.nextInt(Math.floor(width / 2), Math.floor(GAME_WIDTH - width / 2));
+  const baseSpeedY = config.baseSpeed * speedMult * (0.85 + rng.next() * 0.3);
+
+  return {
+    x,
+    y: -height - rng.nextInt(0, 30),
+    width,
+    height,
+    speedY: baseSpeedY,
+    speedX,
+    type,
   };
 }
 
 /**
- * Fixed-timestep game tick. Runs at exactly 60Hz regardless of frame rate.
+ * Fixed-timestep game tick. Runs at exactly 60Hz.
  * Same seed + same inputs = identical results on every device.
  */
 export function tick(
@@ -86,71 +116,61 @@ export function tick(
 ): GameState {
   if (!state.alive) return state;
 
-  const dt = TICK_RATE;
-  const newState = { ...state };
+  const dt = TICK_RATE / 1000; // convert to seconds
+  const s = { ...state };
 
-  // Update survival time
-  newState.survivalTime += dt;
-  newState.difficultyMult = 1 + newState.survivalTime * config.speedRamp / 100;
+  s.tickCount++;
+  s.survivalTime += dt;
 
-  // Move player towards target (smooth)
-  const playerSpeed = 600; // px/sec
-  const diff = input.targetX - newState.playerX;
+  // Speed ramp: increase every rampInterval seconds
+  s.speedMultiplier = 1.0 + Math.floor(s.survivalTime / config.speedRampInterval) * (config.speedRampPercent / 100);
+
+  // Move player toward target
+  const playerSpeed = 500;
+  const diff = input.targetX - s.playerX;
   const maxMove = playerSpeed * dt;
   if (Math.abs(diff) > maxMove) {
-    newState.playerX += Math.sign(diff) * maxMove;
+    s.playerX += Math.sign(diff) * maxMove;
   } else {
-    newState.playerX = input.targetX;
+    s.playerX = input.targetX;
+  }
+  s.playerX = Math.max(PLAYER_WIDTH / 2, Math.min(GAME_WIDTH - PLAYER_WIDTH / 2, s.playerX));
+
+  // Spawn obstacles
+  s.spawnAccumulator += dt;
+  const spawnInterval = config.spawnInterval / s.speedMultiplier;
+  while (s.spawnAccumulator >= spawnInterval) {
+    s.spawnAccumulator -= spawnInterval;
+    s.obstacles = [...s.obstacles, spawnObstacle(rng, config, s.speedMultiplier)];
   }
 
-  // Clamp player within bounds
-  newState.playerX = Math.max(
-    PLAYER_WIDTH / 2,
-    Math.min(GAME_WIDTH - PLAYER_WIDTH / 2, newState.playerX)
-  );
+  // Move obstacles
+  s.obstacles = s.obstacles
+    .map((o) => ({
+      ...o,
+      y: o.y + o.speedY * dt,
+      x: o.x + o.speedX * dt,
+    }))
+    .filter((o) => o.y < GAME_HEIGHT + 60 && o.x > -60 && o.x < GAME_WIDTH + 60);
 
-  // Spawn stalactites
-  newState.spawnTimer += dt;
-  const spawnInterval = config.spawnInterval / newState.difficultyMult;
+  // Collision detection (AABB with slightly forgiving hitbox)
+  const hitboxShrink = 4; // pixels smaller on each side
+  const px1 = s.playerX - PLAYER_WIDTH / 2 + hitboxShrink;
+  const px2 = s.playerX + PLAYER_WIDTH / 2 - hitboxShrink;
+  const py1 = PLAYER_Y + hitboxShrink;
+  const py2 = PLAYER_Y + PLAYER_HEIGHT - hitboxShrink;
 
-  if (newState.spawnTimer >= spawnInterval) {
-    newState.spawnTimer -= spawnInterval;
+  for (const o of s.obstacles) {
+    const ox1 = o.x - o.width / 2;
+    const ox2 = o.x + o.width / 2;
+    const oy1 = o.y;
+    const oy2 = o.y + o.height;
 
-    const width = config.stalactiteWidth + rng.nextInt(-5, 10);
-    const height = 20 + rng.nextInt(0, 30);
-    const x = rng.nextInt(width, GAME_WIDTH - width);
-    const speed =
-      config.baseSpeed * newState.difficultyMult * (0.8 + rng.next() * 0.4);
-
-    newState.stalactites = [
-      ...newState.stalactites,
-      { x, y: -height, width, height, speed },
-    ];
-  }
-
-  // Move stalactites
-  newState.stalactites = newState.stalactites
-    .map((s) => ({ ...s, y: s.y + s.speed * dt }))
-    .filter((s) => s.y < GAME_HEIGHT + 50); // Remove off-screen
-
-  // Collision detection (AABB)
-  const px = newState.playerX - PLAYER_WIDTH / 2;
-  const py = PLAYER_Y;
-
-  for (const s of newState.stalactites) {
-    const sx = s.x - s.width / 2;
-    const sy = s.y;
-
-    if (
-      px < sx + s.width &&
-      px + PLAYER_WIDTH > sx &&
-      py < sy + s.height &&
-      py + PLAYER_HEIGHT > sy
-    ) {
-      newState.alive = false;
+    if (px1 < ox2 && px2 > ox1 && py1 < oy2 && py2 > oy1) {
+      s.alive = false;
       break;
     }
   }
 
-  return newState;
+  return s;
 }

@@ -13,6 +13,7 @@ import {
   PLAYER_HEIGHT,
   PLAYER_Y,
   type GameState,
+  type Obstacle,
 } from "@/lib/games/stalactite-storm";
 
 interface StalactiteStormProps {
@@ -22,11 +23,7 @@ interface StalactiteStormProps {
   onComplete: (score: number, metadata?: Record<string, unknown>) => void;
 }
 
-export function StalactiteStorm({
-  seed,
-  difficulty,
-  onComplete,
-}: StalactiteStormProps) {
+export function StalactiteStorm({ seed, difficulty, onComplete }: StalactiteStormProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<GameState>(createInitialState());
   const rngRef = useRef(createRNG(seed));
@@ -35,26 +32,25 @@ export function StalactiteStorm({
   const accumulatorRef = useRef(0);
   const lastTimeRef = useRef(0);
   const animFrameRef = useRef(0);
+  const completedRef = useRef(false);
   const [displayTime, setDisplayTime] = useState(0);
   const [dead, setDead] = useState(false);
-  const completedRef = useRef(false);
 
-  // Handle input
   const handlePointerMove = useCallback((e: PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = GAME_WIDTH / rect.width;
-    const x = (e.clientX - rect.left) * scaleX;
-    inputRef.current.targetX = Math.max(0, Math.min(GAME_WIDTH, x));
+    inputRef.current.targetX = Math.max(0, Math.min(GAME_WIDTH, (e.clientX - rect.left) * scaleX));
   }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const step = 18;
     if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-      inputRef.current.targetX = Math.max(0, inputRef.current.targetX - 20);
+      inputRef.current.targetX = Math.max(0, inputRef.current.targetX - step);
     }
     if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-      inputRef.current.targetX = Math.min(GAME_WIDTH, inputRef.current.targetX + 20);
+      inputRef.current.targetX = Math.min(GAME_WIDTH, inputRef.current.targetX + step);
     }
   }, []);
 
@@ -66,7 +62,6 @@ export function StalactiteStorm({
     canvas.addEventListener("pointerdown", handlePointerMove);
     window.addEventListener("keydown", handleKeyDown);
 
-    // Reset state
     stateRef.current = createInitialState();
     rngRef.current = createRNG(seed);
     configRef.current = getDifficultyConfig(difficulty);
@@ -83,9 +78,9 @@ export function StalactiteStorm({
         return;
       }
 
-      const deltaTime = Math.min((timestamp - lastTimeRef.current) / 1000, 0.1);
+      const delta = Math.min(timestamp - lastTimeRef.current, 100); // cap to prevent spiral
       lastTimeRef.current = timestamp;
-      accumulatorRef.current += deltaTime;
+      accumulatorRef.current += delta;
 
       // Fixed timestep simulation
       while (accumulatorRef.current >= TICK_RATE) {
@@ -99,22 +94,17 @@ export function StalactiteStorm({
 
         if (!stateRef.current.alive && !completedRef.current) {
           completedRef.current = true;
-          const finalScore =
-            Math.round(stateRef.current.survivalTime * 10) / 10;
+          const finalScore = Math.round(stateRef.current.survivalTime * 10) / 10;
           setDead(true);
           setDisplayTime(finalScore);
+          render(ctx, stateRef.current);
           setTimeout(() => onComplete(finalScore), 1500);
           return;
         }
       }
 
-      setDisplayTime(
-        Math.round(stateRef.current.survivalTime * 10) / 10
-      );
-
-      // Render
+      setDisplayTime(Math.round(stateRef.current.survivalTime * 10) / 10);
       render(ctx, stateRef.current);
-
       animFrameRef.current = requestAnimationFrame(gameLoop);
     }
 
@@ -143,117 +133,136 @@ export function StalactiteStorm({
           </span>
         )}
       </div>
-
       <canvas
         ref={canvasRef}
         width={GAME_WIDTH}
         height={GAME_HEIGHT}
         className="max-w-full rounded-lg border border-border touch-none"
-        style={{
-          maxHeight: "70vh",
-          aspectRatio: `${GAME_WIDTH}/${GAME_HEIGHT}`,
-          imageRendering: "pixelated",
-        }}
+        style={{ maxHeight: "70vh", aspectRatio: `${GAME_WIDTH}/${GAME_HEIGHT}` }}
       />
-
       <p className="text-xs text-gray-500">
-        Move left/right to dodge. Touch: drag. Keyboard: Arrow keys or A/D.
+        Dodge falling obstacles. Touch: drag. Keyboard: Arrow keys / A-D.
       </p>
     </div>
   );
 }
 
 function render(ctx: CanvasRenderingContext2D, state: GameState) {
-  // Background — dark cavern gradient
+  // Background gradient
   const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
-  grad.addColorStop(0, "#0a0a14");
-  grad.addColorStop(0.5, "#0d1117");
-  grad.addColorStop(1, "#121820");
+  grad.addColorStop(0, "#080810");
+  grad.addColorStop(0.4, "#0d1117");
+  grad.addColorStop(1, "#101820");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-  // Cave ceiling texture lines
-  ctx.strokeStyle = "#1a1a2a";
+  // Parallax cave texture (distant layer)
+  ctx.strokeStyle = "#141820";
   ctx.lineWidth = 1;
-  for (let x = 0; x < GAME_WIDTH; x += 30) {
+  const parallaxOffset = (state.survivalTime * 5) % 40;
+  for (let x = -20; x < GAME_WIDTH + 20; x += 40) {
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + 10, 15);
+    ctx.moveTo(x + parallaxOffset, 0);
+    ctx.lineTo(x + 15 + parallaxOffset, GAME_HEIGHT);
     ctx.stroke();
   }
 
-  // Ground line
-  ctx.fillStyle = "#1a1a2e";
-  ctx.fillRect(0, GAME_HEIGHT - 20, GAME_WIDTH, 20);
+  // Ground
+  ctx.fillStyle = "#161b22";
+  ctx.fillRect(0, GAME_HEIGHT - 15, GAME_WIDTH, 15);
 
-  // Stalactites
-  for (const s of state.stalactites) {
-    // Glow
-    ctx.shadowColor = "#c678dd";
-    ctx.shadowBlur = 8;
-
-    // Main body
-    ctx.fillStyle = "#4a3a5e";
-    ctx.beginPath();
-    ctx.moveTo(s.x - s.width / 2, s.y);
-    ctx.lineTo(s.x + s.width / 2, s.y);
-    ctx.lineTo(s.x + s.width / 4, s.y + s.height * 0.7);
-    ctx.lineTo(s.x, s.y + s.height);
-    ctx.lineTo(s.x - s.width / 4, s.y + s.height * 0.7);
-    ctx.closePath();
-    ctx.fill();
-
-    // Highlight
-    ctx.fillStyle = "#c678dd40";
-    ctx.beginPath();
-    ctx.moveTo(s.x - s.width / 4, s.y);
-    ctx.lineTo(s.x, s.y);
-    ctx.lineTo(s.x - s.width / 8, s.y + s.height * 0.5);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.shadowBlur = 0;
+  // Obstacles
+  for (const o of state.obstacles) {
+    renderObstacle(ctx, o);
   }
 
   // Player
-  const px = state.playerX;
-  const py = PLAYER_Y;
-
   if (state.alive) {
-    // Body
-    ctx.fillStyle = "#e5c07b";
-    ctx.fillRect(
-      px - PLAYER_WIDTH / 2 + 5,
-      py + 10,
-      PLAYER_WIDTH - 10,
-      PLAYER_HEIGHT - 15
-    );
-
-    // Head
+    renderPlayer(ctx, state.playerX);
+  } else {
+    // Death effect
+    ctx.fillStyle = "rgba(239, 68, 68, 0.3)";
     ctx.beginPath();
-    ctx.arc(px, py + 8, 8, 0, Math.PI * 2);
-    ctx.fillStyle = "#e5c07b";
+    ctx.arc(state.playerX, PLAYER_Y + PLAYER_HEIGHT / 2, 30, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = "#ef4444";
+    ctx.font = "bold 24px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("✕", state.playerX, PLAYER_Y + PLAYER_HEIGHT / 2 + 8);
+  }
 
-    // Cloak
-    ctx.fillStyle = "#d19a6680";
+  // HUD
+  ctx.fillStyle = "#e5c07b";
+  ctx.font = "bold 14px monospace";
+  ctx.textAlign = "left";
+  ctx.fillText(`${state.survivalTime.toFixed(1)}s`, 10, 20);
+  ctx.fillStyle = "#666";
+  ctx.font = "10px monospace";
+  ctx.fillText(`×${state.speedMultiplier.toFixed(1)}`, 10, 34);
+}
+
+function renderObstacle(ctx: CanvasRenderingContext2D, o: Obstacle) {
+  ctx.save();
+
+  if (o.type === "stalactite") {
+    // Pointed rock shape
+    ctx.fillStyle = "#3a3050";
     ctx.beginPath();
-    ctx.moveTo(px - PLAYER_WIDTH / 2, py + 12);
-    ctx.lineTo(px + PLAYER_WIDTH / 2, py + 12);
-    ctx.lineTo(px + PLAYER_WIDTH / 2 - 3, py + PLAYER_HEIGHT);
-    ctx.lineTo(px - PLAYER_WIDTH / 2 + 3, py + PLAYER_HEIGHT);
+    ctx.moveTo(o.x - o.width / 2, o.y);
+    ctx.lineTo(o.x + o.width / 2, o.y);
+    ctx.lineTo(o.x + o.width / 4, o.y + o.height * 0.7);
+    ctx.lineTo(o.x, o.y + o.height);
+    ctx.lineTo(o.x - o.width / 4, o.y + o.height * 0.7);
     ctx.closePath();
     ctx.fill();
-  } else {
-    // Death flash
-    ctx.fillStyle = "#ef444480";
+    // Glow edge
+    ctx.strokeStyle = "rgba(198, 120, 221, 0.3)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else if (o.type === "bolt") {
+    // Glowing energy bolt
+    ctx.shadowColor = "#c678dd";
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = "#c678dd";
     ctx.beginPath();
-    ctx.arc(px, py + PLAYER_HEIGHT / 2, 25, 0, Math.PI * 2);
+    ctx.arc(o.x, o.y + o.height / 2, o.width / 2, 0, Math.PI * 2);
     ctx.fill();
-
-    ctx.fillStyle = "#ef4444";
-    ctx.font = "bold 20px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText("X", px, py + PLAYER_HEIGHT / 2 + 7);
+    ctx.shadowBlur = 0;
+  } else {
+    // Wide cave debris
+    ctx.fillStyle = "#2a2a3a";
+    ctx.fillRect(o.x - o.width / 2, o.y, o.width, o.height);
+    ctx.strokeStyle = "rgba(100, 100, 120, 0.4)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(o.x - o.width / 2, o.y, o.width, o.height);
   }
+
+  ctx.restore();
+}
+
+function renderPlayer(ctx: CanvasRenderingContext2D, px: number) {
+  // Head
+  ctx.fillStyle = "#e5c07b";
+  ctx.beginPath();
+  ctx.arc(px, PLAYER_Y + 7, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = "#d19a66";
+  ctx.fillRect(px - 5, PLAYER_Y + 14, 10, 14);
+
+  // Cloak
+  ctx.fillStyle = "rgba(97, 175, 239, 0.4)";
+  ctx.beginPath();
+  ctx.moveTo(px - PLAYER_WIDTH / 2 + 2, PLAYER_Y + 12);
+  ctx.lineTo(px + PLAYER_WIDTH / 2 - 2, PLAYER_Y + 12);
+  ctx.lineTo(px + PLAYER_WIDTH / 2 - 4, PLAYER_Y + PLAYER_HEIGHT);
+  ctx.lineTo(px - PLAYER_WIDTH / 2 + 4, PLAYER_Y + PLAYER_HEIGHT);
+  ctx.closePath();
+  ctx.fill();
+
+  // Legs
+  ctx.fillStyle = "#888";
+  ctx.fillRect(px - 4, PLAYER_Y + 28, 3, 8);
+  ctx.fillRect(px + 1, PLAYER_Y + 28, 3, 8);
 }

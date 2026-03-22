@@ -25,11 +25,12 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
   const [timeLeft, setTimeLeft] = useState(timePerRound);
   const [totalTime, setTotalTime] = useState(0);
   const [roundStartTime, setRoundStartTime] = useState(Date.now());
-  const [flash, setFlash] = useState<"correct" | "wrong" | null>(null);
+  const [flash, setFlash] = useState<"correct" | "wrong" | "timeout" | null>(null);
   const [finished, setFinished] = useState(false);
-  const [dnf, setDnf] = useState(false);
+  const [skippedRounds, setSkippedRounds] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const advancingRef = useRef(false);
 
   // Load puzzle for current round
   useEffect(() => {
@@ -39,6 +40,7 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
     setAnswer("");
     setTimeLeft(timePerRound);
     setRoundStartTime(Date.now());
+    advancingRef.current = false;
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
@@ -54,23 +56,38 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
     };
   }, [round, seed, difficulty, timePerRound, totalRounds]);
 
-  // Check time expiry
+  // Handle time expiry — skip with penalty, advance to next round
   useEffect(() => {
-    if (timeLeft <= 0 && !finished) {
-      setDnf(true);
-      setFinished(true);
+    if (timeLeft <= 0 && !finished && !advancingRef.current) {
+      advancingRef.current = true;
       if (timerRef.current) clearInterval(timerRef.current);
-      onComplete(999, { dnf: true, roundsCompleted: round });
+
+      // Add full timer duration as penalty
+      const newTotal = totalTime + timePerRound;
+      setTotalTime(newTotal);
+      setSkippedRounds((prev) => prev + 1);
+
+      setFlash("timeout");
+      setTimeout(() => {
+        setFlash(null);
+        if (round + 1 >= totalRounds) {
+          setFinished(true);
+          onComplete(Math.round(newTotal * 10) / 10, { skipped: skippedRounds + 1 });
+        } else {
+          setRound(round + 1);
+        }
+      }, 1000);
     }
-  }, [timeLeft, finished, round, onComplete]);
+  }, [timeLeft, finished, round, totalRounds, totalTime, timePerRound, skippedRounds, onComplete]);
 
   const handleSubmit = useCallback(() => {
-    if (!puzzle || finished) return;
+    if (!puzzle || finished || advancingRef.current) return;
 
     const isCorrect =
       answer.trim().toUpperCase() === puzzle.answer.toUpperCase();
 
     if (isCorrect) {
+      advancingRef.current = true;
       const roundTime = (Date.now() - roundStartTime) / 1000;
       const newTotal = totalTime + roundTime;
       setTotalTime(newTotal);
@@ -82,7 +99,7 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
         setFlash(null);
         if (round + 1 >= totalRounds) {
           setFinished(true);
-          onComplete(Math.round(newTotal * 10) / 10);
+          onComplete(Math.round(newTotal * 10) / 10, { skipped: skippedRounds });
         } else {
           setRound(round + 1);
         }
@@ -92,7 +109,38 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
       setAnswer("");
       setTimeout(() => setFlash(null), 500);
     }
-  }, [answer, puzzle, finished, round, totalRounds, roundStartTime, totalTime, onComplete]);
+  }, [answer, puzzle, finished, round, totalRounds, roundStartTime, totalTime, skippedRounds, onComplete]);
+
+  // Handle pattern-match option click
+  const handleOptionSelect = useCallback(
+    (option: string) => {
+      if (!puzzle || finished || advancingRef.current) return;
+      setAnswer(option);
+      // Auto-submit for pattern match
+      if (option === puzzle.answer) {
+        advancingRef.current = true;
+        const roundTime = (Date.now() - roundStartTime) / 1000;
+        const newTotal = totalTime + roundTime;
+        setTotalTime(newTotal);
+        if (timerRef.current) clearInterval(timerRef.current);
+        setFlash("correct");
+        setTimeout(() => {
+          setFlash(null);
+          if (round + 1 >= totalRounds) {
+            setFinished(true);
+            onComplete(Math.round(newTotal * 10) / 10, { skipped: skippedRounds });
+          } else {
+            setRound(round + 1);
+          }
+        }, 800);
+      } else {
+        setFlash("wrong");
+        setAnswer("");
+        setTimeout(() => setFlash(null), 500);
+      }
+    },
+    [puzzle, finished, round, totalRounds, roundStartTime, totalTime, skippedRounds, onComplete]
+  );
 
   if (!puzzle) {
     return (
@@ -103,6 +151,12 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
   }
 
   const timerPercent = (timeLeft / timePerRound) * 100;
+  const puzzleLabel =
+    puzzle.type === "math-cipher"
+      ? "Solve the Cipher"
+      : puzzle.type === "quick-math"
+        ? "Quick Math"
+        : "What Comes Next?";
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-6">
@@ -135,11 +189,13 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
             ? "border-gold bg-gold/10"
             : flash === "wrong"
               ? "border-red-500 bg-red-500/10"
-              : "border-border bg-[#1a1a2e]"
+              : flash === "timeout"
+                ? "border-orange-500 bg-orange-500/10"
+                : "border-border bg-[#1a1a2e]"
         }`}
       >
         <div className="mb-2 text-xs font-bold uppercase text-gray-500">
-          {puzzle.type === "anagram" ? "Unscramble" : "Solve"}
+          {flash === "timeout" ? "Time's Up! Skipping..." : puzzleLabel}
         </div>
         <div className="whitespace-pre-line font-cinzel text-2xl font-bold text-gold">
           {puzzle.prompt}
@@ -149,46 +205,56 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
         )}
       </div>
 
-      {/* Input */}
-      {!finished && (
-        <div className="flex w-full gap-2">
-          <input
-            ref={inputRef}
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            placeholder="Your answer..."
-            className="min-h-[44px] flex-1 rounded border border-gray-700 bg-background px-4 py-2 text-center text-lg font-bold text-white placeholder-gray-500 focus:border-gold focus:outline-none"
-            autoComplete="off"
-            autoCapitalize="characters"
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={!answer.trim()}
-            className="min-h-[44px] min-w-[44px] rounded bg-gold px-4 font-bold text-background disabled:opacity-50"
-          >
-            Go
-          </button>
-        </div>
+      {/* Input — text for math, buttons for pattern match */}
+      {!finished && !advancingRef.current && (
+        <>
+          {puzzle.type === "pattern-match" && puzzle.options ? (
+            <div className="grid w-full grid-cols-2 gap-2">
+              {puzzle.options.map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => handleOptionSelect(opt)}
+                  className="min-h-[44px] rounded border border-gray-700 bg-background px-4 py-3 text-lg font-bold text-white transition-colors hover:border-gold hover:bg-gold/10"
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex w-full gap-2">
+              <input
+                ref={inputRef}
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                placeholder="Your answer..."
+                className="min-h-[44px] flex-1 rounded border border-gray-700 bg-background px-4 py-2 text-center text-lg font-bold text-white placeholder-gray-500 focus:border-gold focus:outline-none"
+                autoComplete="off"
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={!answer.trim()}
+                className="min-h-[44px] min-w-[44px] rounded bg-gold px-4 font-bold text-background disabled:opacity-50"
+              >
+                Go
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Results */}
-      {finished && !dnf && (
+      {finished && (
         <div className="text-center">
-          <p className="text-lg font-bold text-gold">
-            All rounds complete!
-          </p>
+          <p className="text-lg font-bold text-gold">All rounds complete!</p>
           <p className="text-sm text-gray-400">
             Total time: {totalTime.toFixed(1)}s
-          </p>
-        </div>
-      )}
-
-      {dnf && (
-        <div className="text-center">
-          <p className="text-lg font-bold text-red-400">Time&apos;s up!</p>
-          <p className="text-sm text-gray-400">
-            Completed {round} of {totalRounds} rounds
+            {skippedRounds > 0 && (
+              <span className="text-orange-400">
+                {" "}
+                ({skippedRounds} skipped with penalty)
+              </span>
+            )}
           </p>
         </div>
       )}
@@ -197,6 +263,7 @@ export function GlyphRace({ seed, difficulty, onComplete }: GlyphRaceProps) {
       {!finished && totalTime > 0 && (
         <p className="text-xs text-gray-500">
           Running total: {totalTime.toFixed(1)}s
+          {skippedRounds > 0 && ` (${skippedRounds} skipped)`}
         </p>
       )}
     </div>
