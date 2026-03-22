@@ -10,7 +10,7 @@ export interface SeatingArrangement {
 //  DM
 
 // Constraints:
-// Johnathan: seat 1 or 6 (closest to DM)
+// Jonathan: seat 1 or 6 (closest to DM)
 // Eric: seat 3 or 4 (furthest from DM)
 // Matthew: seat 1, 3, 4, or 6 (edges only)
 // Mykolov, Brent, Justin: any remaining seat
@@ -38,7 +38,7 @@ export function generateArrangements(): SeatingArrangement[] {
 
   for (const jSeat of JOHNATHAN_SEATS) {
     for (const eSeat of ERIC_SEATS) {
-      // Matthew: edges (1, 3, 4, 6) minus seats taken by Johnathan and Eric
+      // Matthew: edges (1, 3, 4, 6) minus seats taken by Jonathan and Eric
       const matthewOptions = MATTHEW_SEATS.filter(
         (s) => s !== jSeat && s !== eSeat
       );
@@ -52,7 +52,7 @@ export function generateArrangements(): SeatingArrangement[] {
         // All permutations of free players in remaining seats
         for (const perm of permutations(FREE_PLAYERS)) {
           const seats: Record<number, string> = {
-            [jSeat]: "Johnathan",
+            [jSeat]: "Jonathan",
             [eSeat]: "Eric",
             [mSeat]: "Matthew",
           };

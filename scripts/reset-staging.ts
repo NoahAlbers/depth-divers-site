@@ -69,7 +69,7 @@ async function main() {
   console.log("  - InitiativeState: created");
 
   // Create DM conversations + Party Chat
-  const PLAYERS = ["Mykolov", "Brent", "Johnathan", "Justin", "Eric", "Matthew"];
+  const PLAYERS = ["Mykolov", "Brent", "Jonathan", "Justin", "Eric", "Matthew"];
   const ALL = [...PLAYERS, "Noah"];
 
   for (const player of PLAYERS) {

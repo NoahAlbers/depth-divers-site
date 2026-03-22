@@ -7,7 +7,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const PLAYERS = ["Mykolov", "Brent", "Johnathan", "Justin", "Eric", "Matthew"];
+const PLAYERS = ["Mykolov", "Brent", "Jonathan", "Justin", "Eric", "Matthew"];
 const DM_NAME = "Noah";
 const ALL_MEMBERS = [...PLAYERS, DM_NAME];
 

@@ -250,8 +250,8 @@ const TAGLINES = [
 const tools = [
   {
     href: "/messages",
-    title: "Secret Messages",
-    tagline: "Whisper to your allies... or enemies",
+    title: "Messages",
+    tagline: "Send messages to your party",
     icon: "\u{1F4AC}",
   },
   {
@@ -263,7 +263,7 @@ const tools = [
   {
     href: "/games",
     title: "Games",
-    tagline: "Compete in D&D-themed challenges",
+    tagline: "Compete in challenges",
     icon: "\uD83C\uDFAE",
   },
   {
@@ -358,7 +358,7 @@ export default function Home() {
               DM Area
             </h2>
             <p className="mt-2 text-sm text-gray-400">
-              Your command center
+              The command center
             </p>
           </Link>
         )}

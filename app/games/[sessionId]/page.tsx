@@ -46,6 +46,7 @@ export default function GameSessionPage() {
   const playerName = effectivePlayer;
   const [session, setSession] = useState<SessionData | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [retryRequested, setRetryRequested] = useState(false);
 
   const fetchSession = useCallback(async () => {
     try {
@@ -53,9 +54,13 @@ export default function GameSessionPage() {
       if (res.ok) {
         const data: SessionResponse = await res.json();
         setSession(data.session);
+        // Check if player already has a result
+        if (playerName && data.session.results.some((r: GameResult) => r.playerName === playerName)) {
+          setSubmitted(true);
+        }
       }
     } catch {}
-  }, [sessionId]);
+  }, [sessionId, playerName]);
 
   useEffect(() => {
     fetchSession();
@@ -208,6 +213,23 @@ export default function GameSessionPage() {
             results={session.results}
             category={game?.category || "puzzle"}
           />
+          {!retryRequested ? (
+            <button
+              onClick={async () => {
+                await fetch(`/api/games/${sessionId}/request-retry`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ playerName, gameName: game?.name }),
+                });
+                setRetryRequested(true);
+              }}
+              className="mt-4 rounded border border-gold/30 px-4 py-2 text-xs text-gold hover:bg-gold/10"
+            >
+              Request Retry
+            </button>
+          ) : (
+            <p className="mt-4 text-xs text-gray-500">Retry request sent to DM</p>
+          )}
         </div>
       </div>
     );

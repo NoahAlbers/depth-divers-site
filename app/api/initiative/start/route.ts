@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   // Quick add all 6 players with roll 0
   if (quickAdd) {
-    const players = ["Mykolov", "Brent", "Johnathan", "Justin", "Eric", "Matthew"];
+    const players = ["Mykolov", "Brent", "Jonathan", "Justin", "Eric", "Matthew"];
     await prisma.initiative.createMany({
       data: players.map((name, i) => ({
         name,

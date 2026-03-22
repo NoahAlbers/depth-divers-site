@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { getPlayerColor, PLAYERS, DM } from "@/lib/players";
 import { UnreadBadge } from "./unread-badge";
 
@@ -29,6 +29,7 @@ interface ConversationListProps {
   isDM: boolean;
   onCreateGroup: (name: string, members: string[]) => void;
   onDeleteGroup?: (conversationId: string) => void;
+  characterNames?: Record<string, string>;
 }
 
 function relativeTime(dateStr: string): string {
@@ -119,6 +120,7 @@ export function ConversationList({
   isDM,
   onCreateGroup,
   onDeleteGroup,
+  characterNames = {},
 }: ConversationListProps) {
   const dmTabs = isDM
     ? (["my-chats", "player-chats", "groups"] as const)
@@ -132,6 +134,17 @@ export function ConversationList({
 
   const dmConvos = conversations.filter((c) => c.type === "dm");
   const groupConvos = conversations.filter((c) => c.type === "group");
+
+  // Party chat: a group containing all players
+  const allPlayerNames = ALL_CHARACTERS.map((c) => c.name);
+  const partyChatConvo = groupConvos.find((c) =>
+    allPlayerNames.every((name) => c.members.includes(name))
+  );
+
+  // Unread counts per tab
+  const friendsUnread = dmConvos.reduce((sum, c) => sum + c.unreadCount, 0) +
+    (partyChatConvo?.unreadCount || 0);
+  const groupsUnread = groupConvos.reduce((sum, c) => sum + c.unreadCount, 0);
 
   // For DM: split DM convos into "my chats" (Noah is member) and "player chats" (Noah is NOT member)
   const myDmConvos = dmConvos.filter((c) => c.members.includes("Noah"));
@@ -190,17 +203,34 @@ export function ConversationList({
       return timeB - timeA;
     });
 
-    return sorted.map((char) => {
-      // Find the DM conversation for this pair
+    const rows: React.ReactNode[] = [];
+
+    // Party chat pinned at top
+    if (partyChatConvo) {
+      rows.push(
+        <ConvoRow
+          key={partyChatConvo.id}
+          convo={partyChatConvo}
+          displayName={partyChatConvo.name || "Party Chat"}
+          color="#e5c07b"
+          isSelected={selectedId === partyChatConvo.id}
+          onSelect={() => onSelect(partyChatConvo.id)}
+        />
+      );
+    }
+
+    rows.push(...sorted.map((char) => {
       const convo = dmConvos.find((c) => c.members.includes(char.name));
       const isSelected = convo ? selectedId === convo.id : false;
+      const charName = characterNames[char.name];
+      const displayName = charName ? `${char.name} — ${charName}` : char.name;
 
       if (convo) {
         return (
           <ConvoRow
             key={convo.id}
             convo={convo}
-            displayName={char.name}
+            displayName={displayName}
             color={char.color}
             isSelected={isSelected}
             onSelect={() => onSelect(convo.id)}
@@ -223,7 +253,9 @@ export function ConversationList({
           </span>
         </div>
       );
-    });
+    }));
+
+    return rows;
   }
 
   // Render conversation rows for a list of convos, sorted by last message
@@ -286,6 +318,12 @@ export function ConversationList({
             }`}
           >
             {tabLabels[t]}
+            {t === "friends" && friendsUnread > 0 && (
+              <UnreadBadge count={friendsUnread} className="ml-1" />
+            )}
+            {t === "groups" && groupsUnread > 0 && (
+              <UnreadBadge count={groupsUnread} className="ml-1" />
+            )}
           </button>
         ))}
       </div>

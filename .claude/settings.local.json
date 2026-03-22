@@ -12,7 +12,10 @@
       "Bash(polling)",
       "Bash(dm-auth \")",
       "Bash(find /c/Users/alber/Desktop/depth-divers-site/lib -type f -name *.ts)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/games/[sessionId]/request-retry\")",
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/games/[sessionId]/approve-retry\")",
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/games/[sessionId]/deny-retry\")"
     ]
   }
 }

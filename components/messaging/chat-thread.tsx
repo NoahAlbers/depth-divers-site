@@ -7,6 +7,7 @@ import { MessageDetailSheet } from "./message-detail-sheet";
 import { FullEmojiPicker } from "./full-emoji-picker";
 import { GroupSettings } from "./group-settings";
 import { LinkPreviewCard } from "./link-preview-card";
+import { renderMarkdown } from "@/lib/markdown";
 import { extractUrls } from "@/lib/url-utils";
 
 const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
@@ -107,6 +108,7 @@ interface ChatThreadProps {
   conversationId?: string;
   conversationCreator?: string;
   conversationEmoji?: string | null;
+  characterNames?: Record<string, string>;
   isGroupChat?: boolean;
   isDM?: boolean;
   highlightMessageId?: string | null;
@@ -139,6 +141,7 @@ export function ChatThread({
   conversationId,
   conversationCreator,
   conversationEmoji,
+  characterNames = {},
   isGroupChat,
   isDM: isDMProp,
   highlightMessageId,
@@ -353,7 +356,9 @@ export function ChatThread({
                         className="text-xs font-bold"
                         style={{ color }}
                       >
-                        {msg.from}
+                        {msg.tag === "IC" && characterNames[msg.from]
+                          ? characterNames[msg.from]
+                          : msg.from}
                       </span>
                       {msg.tag === "IC" && (
                         <span className="rounded bg-purple-600/30 px-1 py-0.5 text-[9px] font-bold text-purple-300">
@@ -371,11 +376,11 @@ export function ChatThread({
                     <p
                       className={`whitespace-pre-wrap break-words text-sm ${
                         msg.tag === "IC"
-                          ? "font-cinzel text-gray-200"
+                          ? "text-gray-200"
                           : "text-gray-300"
                       }`}
                     >
-                      {renderTextWithLinks(msg.body)}
+                      {renderMarkdown(renderTextWithLinks(msg.body))}
                     </p>
                     {(() => {
                       const urls = extractUrls(msg.body);

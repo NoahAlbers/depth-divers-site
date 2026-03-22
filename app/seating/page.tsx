@@ -382,10 +382,10 @@ export default function SeatingPage() {
         <div className="grid gap-2 text-xs text-gray-400 sm:grid-cols-2">
           <div>
             <span
-              style={{ color: getPlayerColor("Johnathan") }}
+              style={{ color: getPlayerColor("Jonathan") }}
               className="font-bold"
             >
-              Johnathan
+              Jonathan
             </span>
             : Seat 1 or 6 (closest to DM)
           </div>

@@ -67,8 +67,28 @@ export default function MessagesPage() {
   const [convoMembers, setConvoMembers] = useState<string[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
+  const [characterNames, setCharacterNames] = useState<Record<string, string>>({});
 
   const playerName = effectivePlayer;
+
+  // Fetch character names for all players
+  useEffect(() => {
+    const names = ["Mykolov", "Brent", "Jonathan", "Justin", "Eric", "Matthew", "Noah"];
+    Promise.all(
+      names.map((name) =>
+        fetch(`/api/character?player=${name}`)
+          .then((r) => r.json())
+          .then((data) => ({ name, charName: data.sheet?.characterName || "" }))
+          .catch(() => ({ name, charName: "" }))
+      )
+    ).then((results) => {
+      const map: Record<string, string> = {};
+      for (const r of results) {
+        if (r.charName) map[r.name] = r.charName;
+      }
+      setCharacterNames(map);
+    });
+  }, []);
 
   // Handle URL params for deep-linking from DM feed
   useEffect(() => {
@@ -272,6 +292,7 @@ export default function MessagesPage() {
             isDM={effectiveIsDM}
             onCreateGroup={handleCreateGroup}
             onDeleteGroup={effectiveIsDM ? handleDeleteGroup : undefined}
+            characterNames={characterNames}
           />
         </div>
 
@@ -298,6 +319,7 @@ export default function MessagesPage() {
                 conversationId={selectedId || undefined}
                 conversationCreator={selectedConvo?.createdBy}
                 conversationEmoji={selectedConvo?.emoji}
+                characterNames={characterNames}
                 isGroupChat={selectedConvo?.type === "group"}
                 isDM={effectiveIsDM}
                 highlightMessageId={highlightMessageId}

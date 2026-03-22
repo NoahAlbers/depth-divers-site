@@ -39,8 +39,15 @@ export async function POST(
     metadata?: Record<string, unknown>;
   }>;
 
-  // Replace existing result or add new
+  // Reject duplicate submissions
   const existingIdx = results.findIndex((r) => r.playerName === playerName);
+  if (existingIdx >= 0) {
+    return NextResponse.json(
+      { error: "Already submitted a result for this session" },
+      { status: 409 }
+    );
+  }
+
   const result = {
     playerName,
     score: Number(score),
@@ -48,11 +55,7 @@ export async function POST(
     ...(metadata ? { metadata } : {}),
   };
 
-  if (existingIdx >= 0) {
-    results[existingIdx] = result;
-  } else {
-    results.push(result);
-  }
+  results.push(result);
 
   await prisma.gameSession.update({
     where: { id: sessionId },

@@ -1,7 +1,7 @@
 export const PLAYERS = [
   { name: "Mykolov", short: "MYK", color: "#e06c75" },
   { name: "Brent", short: "BRE", color: "#61afef" },
-  { name: "Johnathan", short: "JON", color: "#e5c07b" },
+  { name: "Jonathan", short: "JON", color: "#e5c07b" },
   { name: "Justin", short: "JUS", color: "#98c379" },
   { name: "Eric", short: "ERI", color: "#c678dd" },
   { name: "Matthew", short: "MAT", color: "#d19a66" },
