@@ -138,6 +138,8 @@ export function StealthSequence({ seed, difficulty, onComplete }: StealthSequenc
       </div>
       <canvas
         ref={canvasRef}
+        width={400}
+        height={400}
         className="max-w-full rounded-lg border border-border touch-none"
         style={{ maxHeight: "65vh", aspectRatio: "1" }}
       />

@@ -235,6 +235,9 @@ export default function GameSessionPage() {
       {session.gameId === "drinking-contest" && <DrinkingContest {...gameProps} />}
       {session.gameId === "stealth-sequence" && <StealthSequence {...gameProps} />}
       {session.gameId === "defuse-the-glyph" && <DefuseTheGlyph {...gameProps} />}
+      {!["arcane-conduit", "rune-echoes", "glyph-race", "stalactite-storm", "spider-swat", "lockpicking", "drinking-contest", "stealth-sequence", "defuse-the-glyph"].includes(session.gameId) && (
+        <p className="text-red-400">Unknown game: &quot;{session.gameId}&quot;</p>
+      )}
     </div>
   );
 }

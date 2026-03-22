@@ -28,17 +28,16 @@ export function Lockpicking({ seed, difficulty, timeLimit, onComplete }: Lockpic
   const [displayTime, setDisplayTime] = useState(0);
   const [gameStatus, setGameStatus] = useState<"playing" | "won" | "failed">("playing");
 
+  const targetRef = useRef({ x: GAME_WIDTH / 2, y: GAME_HEIGHT / 2 });
+
   const handlePointerMove = useCallback((e: PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = GAME_WIDTH / rect.width;
     const scaleY = GAME_HEIGHT / rect.height;
-    // Offset upward so finger doesn't cover the pick on mobile
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY - 20;
-    (canvas as unknown as { _targetX: number; _targetY: number })._targetX = x;
-    (canvas as unknown as { _targetX: number; _targetY: number })._targetY = y;
+    targetRef.current.x = (e.clientX - rect.left) * scaleX;
+    targetRef.current.y = (e.clientY - rect.top) * scaleY - 20;
   }, []);
 
   useEffect(() => {
@@ -71,8 +70,7 @@ export function Lockpicking({ seed, difficulty, timeLimit, onComplete }: Lockpic
       strikeFlash: 0,
     };
 
-    (canvas as unknown as { _targetX: number; _targetY: number })._targetX = state.pickX;
-    (canvas as unknown as { _targetX: number; _targetY: number })._targetY = state.pickY;
+    targetRef.current = { x: state.pickX, y: state.pickY };
 
     let lastColliding = false;
     let animFrame = 0;
@@ -97,17 +95,16 @@ export function Lockpicking({ seed, difficulty, timeLimit, onComplete }: Lockpic
         }
 
         // Move pick toward target
-        const target = canvas as unknown as { _targetX: number; _targetY: number };
         const maxSpeed = 300 * dt;
-        const dx = target._targetX - state.pickX;
-        const dy = target._targetY - state.pickY;
+        const dx = targetRef.current.x - state.pickX;
+        const dy = targetRef.current.y - state.pickY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > maxSpeed) {
           state.pickX += (dx / dist) * maxSpeed;
           state.pickY += (dy / dist) * maxSpeed;
         } else {
-          state.pickX = target._targetX;
-          state.pickY = target._targetY;
+          state.pickX = targetRef.current.x;
+          state.pickY = targetRef.current.y;
         }
 
         // Clamp

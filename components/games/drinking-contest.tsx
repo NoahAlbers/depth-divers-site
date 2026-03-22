@@ -47,9 +47,10 @@ export function DrinkingContest({ onComplete }: DrinkingContestProps) {
     let displayCounter = 0;
 
     canvas.addEventListener("pointerdown", handleTap);
-    window.addEventListener("keydown", (e) => {
+    const keyHandler = (e: KeyboardEvent) => {
       if (e.key === " " || e.key === "Enter") handleTap();
-    });
+    };
+    window.addEventListener("keydown", keyHandler);
 
     function gameLoop(timestamp: number) {
       if (lastTime === 0) { lastTime = timestamp; animFrame = requestAnimationFrame(gameLoop); return; }
@@ -86,6 +87,7 @@ export function DrinkingContest({ onComplete }: DrinkingContestProps) {
     return () => {
       cancelAnimationFrame(animFrame);
       canvas.removeEventListener("pointerdown", handleTap);
+      window.removeEventListener("keydown", keyHandler);
     };
   }, [handleTap]);
 
