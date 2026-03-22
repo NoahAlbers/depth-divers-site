@@ -1,215 +1,541 @@
 import { createRNG } from "./seeded-random";
 
-// Pipe connections: which directions each tile type connects in its base rotation (0)
+// ===== TYPES =====
+
+export type PipeType =
+  | "horizontal"  // ═  left↔right
+  | "vertical"    // ║  up↔down
+  | "corner-dr"   // ╔  top→right / left→down
+  | "corner-dl"   // ╗  top→left / right→down
+  | "corner-ur"   // ╚  bottom→right / left→up
+  | "corner-ul"   // ╝  bottom→left / right→up
+  | "cross";      // ╬  left↔right AND up↔down (dual use)
+
+export type CellState = "empty" | "blocked" | "source" | "end-crystal" | "reservoir";
+
 // Directions: 0=up, 1=right, 2=down, 3=left
-export type TileType = "straight" | "corner" | "tee" | "cross";
-
-const TILE_CONNECTIONS: Record<TileType, number[]> = {
-  straight: [0, 2],    // up-down
-  corner: [0, 1],      // up-right
-  tee: [0, 1, 2],      // up-right-down
-  cross: [0, 1, 2, 3], // all four
-};
-
-export interface Tile {
-  type: TileType;
-  rotation: number; // 0, 1, 2, 3 (each = 90° clockwise)
-  row: number;
-  col: number;
-  isSource: boolean;
-  isTarget: boolean;
-}
-
-export interface Grid {
-  rows: number;
-  cols: number;
-  tiles: Tile[][];
-}
-
 const OPPOSITE: Record<number, number> = { 0: 2, 1: 3, 2: 0, 3: 1 };
-const DR = [-1, 0, 1, 0]; // direction row offsets: up, right, down, left
+const DR = [-1, 0, 1, 0];
 const DC = [0, 1, 0, -1];
 
-function getConnections(tile: Tile): number[] {
-  const base = TILE_CONNECTIONS[tile.type];
-  return base.map((d) => (d + tile.rotation) % 4);
-}
+// Which direction pairs each pipe type connects
+const PIPE_CONNECTIONS: Record<PipeType, [number, number][]> = {
+  horizontal:  [[1, 3]],         // right↔left
+  vertical:    [[0, 2]],         // up↔down
+  "corner-dr": [[0, 1]],        // up→right (╔)
+  "corner-dl": [[0, 3]],        // up→left (╗)
+  "corner-ur": [[2, 1]],        // down→right (╚)
+  "corner-ul": [[2, 3]],        // down→left (╝)
+  cross:       [[1, 3], [0, 2]], // horizontal AND vertical (two independent paths)
+};
 
-function connects(tile: Tile, direction: number): boolean {
-  return getConnections(tile).includes(direction);
+/**
+ * Given a pipe type and the direction flow ENTERS from,
+ * return the direction flow EXITS to. Returns -1 if flow can't enter from that side.
+ */
+export function getExitDirection(pipe: PipeType, enterFrom: number): number {
+  const pairs = PIPE_CONNECTIONS[pipe];
+  for (const [a, b] of pairs) {
+    if (a === enterFrom) return b;
+    if (b === enterFrom) return a;
+  }
+  return -1;
 }
 
 /**
- * Generate a solvable pipe grid.
- * Algorithm:
- * 1. Create a spanning tree via random walk from source to fill grid
- * 2. Assign tile types based on which neighbors are connected
- * 3. Randomize rotations for the puzzle
+ * Check if a pipe accepts flow from a given direction.
  */
-export function generateGrid(
-  seed: number,
-  difficulty: "easy" | "medium" | "hard"
-): Grid {
-  const rng = createRNG(seed);
-  const size = difficulty === "easy" ? 5 : difficulty === "medium" ? 7 : 9;
-  const rows = size;
-  const cols = size;
+export function acceptsFlowFrom(pipe: PipeType, direction: number): boolean {
+  return getExitDirection(pipe, direction) !== -1;
+}
 
-  // Build a spanning tree via randomized DFS
-  const connected: boolean[][] = Array.from({ length: rows }, () =>
-    Array(cols).fill(false)
-  );
-  // Track which directions each cell connects to its neighbors
-  const links: number[][][] = Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => [])
-  );
+export interface PipeCell {
+  pipe: PipeType | null;
+  state: CellState;
+  flowFilled: boolean;
+  flowProgress: number;       // 0-1 for animation
+  flowDirections: number[];   // which entry directions have been used
+  locked: boolean;
+}
 
-  const stack: [number, number][] = [[0, 0]];
-  connected[0][0] = true;
+export interface FlowHead {
+  row: number;
+  col: number;
+  enterDir: number; // direction flow enters this cell from
+}
 
-  while (stack.length > 0) {
-    const [r, c] = stack[stack.length - 1];
-    const dirs = rng.shuffle([0, 1, 2, 3]);
-    let found = false;
+export interface ArcaneConduitState {
+  grid: PipeCell[][];
+  gridSize: number;
+  sourcePos: [number, number];
+  sourceExitDir: number;
+  endCrystalPos: [number, number] | null;
+  reservoirPos: [number, number] | null;
+  queue: PipeType[];
+  queueSize: number;
+  score: number;
+  segmentCount: number;
+  penalties: number;
+  flowActive: boolean;
+  flowHead: FlowHead | null;
+  flowTimer: number;
+  flowSpeed: number;
+  baseFlowSpeed: number;
+  initialDelay: number;
+  delayTimer: number;
+  gameOver: boolean;
+  reachedEndCrystal: boolean;
+  minSegments: number;
+  replaceCooldown: number;
+}
 
-    for (const d of dirs) {
+// ===== DIFFICULTY PARAMS =====
+
+const DIFFICULTY_PARAMS = {
+  easy:   { gridSize: 7,  flowDelay: 8,  flowSpeed: 2.0, minSegments: 10, blockedCells: 0,  hasReservoir: false, hasEndCrystal: false },
+  medium: { gridSize: 9,  flowDelay: 5,  flowSpeed: 1.5, minSegments: 16, blockedCells: 4,  hasReservoir: false, hasEndCrystal: false },
+  hard:   { gridSize: 10, flowDelay: 3,  flowSpeed: 1.0, minSegments: 22, blockedCells: 5,  hasReservoir: true,  hasEndCrystal: true },
+};
+
+// ===== PIPE GENERATION =====
+
+const ALL_PIPES: PipeType[] = [
+  "horizontal", "vertical", "corner-dr", "corner-dl", "corner-ur", "corner-ul", "cross",
+];
+
+const PIPE_WEIGHTS: Record<PipeType, number> = {
+  horizontal: 15, vertical: 15, "corner-dr": 15, "corner-dl": 15, "corner-ur": 15, "corner-ul": 15, cross: 8,
+};
+
+function generatePipe(rng: ReturnType<typeof createRNG>): PipeType {
+  const total = Object.values(PIPE_WEIGHTS).reduce((a, b) => a + b, 0);
+  let r = rng.next() * total;
+  for (const pipe of ALL_PIPES) {
+    r -= PIPE_WEIGHTS[pipe];
+    if (r <= 0) return pipe;
+  }
+  return "horizontal";
+}
+
+/**
+ * Generate a queue of pipes with guaranteed variety:
+ * within every 7 consecutive pieces, at least 1 horizontal, 1 vertical, 2 different corners.
+ */
+function generateQueue(rng: ReturnType<typeof createRNG>, size: number): PipeType[] {
+  const queue: PipeType[] = [];
+  for (let i = 0; i < size; i++) {
+    queue.push(generatePipe(rng));
+  }
+  // Validate variety in first 7
+  ensureVariety(queue, rng, 0);
+  return queue;
+}
+
+function ensureVariety(queue: PipeType[], rng: ReturnType<typeof createRNG>, startIdx: number) {
+  const end = Math.min(startIdx + 7, queue.length);
+  const slice = queue.slice(startIdx, end);
+  const hasHoriz = slice.includes("horizontal");
+  const hasVert = slice.includes("vertical");
+  const corners = slice.filter((p) => p.startsWith("corner-"));
+  const uniqueCorners = new Set(corners);
+
+  if (!hasHoriz && end > startIdx) queue[startIdx] = "horizontal";
+  if (!hasVert && end > startIdx + 1) queue[startIdx + 1] = "vertical";
+  if (uniqueCorners.size < 2 && end > startIdx + 2) {
+    const allCorners: PipeType[] = ["corner-dr", "corner-dl", "corner-ur", "corner-ul"];
+    queue[startIdx + 2] = rng.pick(allCorners);
+    const remaining = allCorners.filter((c) => c !== queue[startIdx + 2]);
+    if (end > startIdx + 3) queue[startIdx + 3] = rng.pick(remaining);
+  }
+}
+
+// ===== BFS PATH CHECK =====
+
+function hasPath(grid: PipeCell[][], start: [number, number], end: [number, number], gridSize: number): boolean {
+  const visited = new Set<string>();
+  const queue: [number, number][] = [start];
+  visited.add(`${start[0]},${start[1]}`);
+
+  while (queue.length > 0) {
+    const [r, c] = queue.shift()!;
+    if (r === end[0] && c === end[1]) return true;
+
+    for (let d = 0; d < 4; d++) {
       const nr = r + DR[d];
       const nc = c + DC[d];
-      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !connected[nr][nc]) {
-        connected[nr][nc] = true;
-        links[r][c].push(d);
-        links[nr][nc].push(OPPOSITE[d]);
-        stack.push([nr, nc]);
-        found = true;
+      if (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
+        const key = `${nr},${nc}`;
+        if (!visited.has(key) && grid[nr][nc].state !== "blocked") {
+          visited.add(key);
+          queue.push([nr, nc]);
+        }
+      }
+    }
+  }
+  return false;
+}
+
+// ===== LEVEL GENERATION =====
+
+export function generateLevel(
+  seed: number,
+  difficulty: "easy" | "medium" | "hard",
+  queueSize: number = 5
+): ArcaneConduitState {
+  const rng = createRNG(seed);
+  const params = DIFFICULTY_PARAMS[difficulty];
+  const gs = params.gridSize;
+
+  // Initialize grid
+  const grid: PipeCell[][] = Array.from({ length: gs }, () =>
+    Array.from({ length: gs }, () => ({
+      pipe: null,
+      state: "empty" as CellState,
+      flowFilled: false,
+      flowProgress: 0,
+      flowDirections: [],
+      locked: false,
+    }))
+  );
+
+  // Place source on a random edge
+  const edge = rng.nextInt(0, 3); // 0=top, 1=right, 2=bottom, 3=left
+  let sourceRow: number, sourceCol: number, sourceExitDir: number;
+
+  switch (edge) {
+    case 0: // top edge, flow goes down
+      sourceRow = 0;
+      sourceCol = rng.nextInt(1, gs - 2);
+      sourceExitDir = 2; // down
+      break;
+    case 1: // right edge, flow goes left
+      sourceRow = rng.nextInt(1, gs - 2);
+      sourceCol = gs - 1;
+      sourceExitDir = 3; // left
+      break;
+    case 2: // bottom edge, flow goes up
+      sourceRow = gs - 1;
+      sourceCol = rng.nextInt(1, gs - 2);
+      sourceExitDir = 0; // up
+      break;
+    default: // left edge, flow goes right
+      sourceRow = rng.nextInt(1, gs - 2);
+      sourceCol = 0;
+      sourceExitDir = 1; // right
+      break;
+  }
+
+  grid[sourceRow][sourceCol].state = "source";
+
+  // Place end crystal (Hard only) on opposite side
+  let endCrystalPos: [number, number] | null = null;
+  if (params.hasEndCrystal) {
+    const oppositeEdge = (edge + 2) % 4;
+    let ecRow: number, ecCol: number;
+    switch (oppositeEdge) {
+      case 0: ecRow = 0; ecCol = rng.nextInt(1, gs - 2); break;
+      case 1: ecRow = rng.nextInt(1, gs - 2); ecCol = gs - 1; break;
+      case 2: ecRow = gs - 1; ecCol = rng.nextInt(1, gs - 2); break;
+      default: ecRow = rng.nextInt(1, gs - 2); ecCol = 0; break;
+    }
+    grid[ecRow][ecCol].state = "end-crystal";
+    endCrystalPos = [ecRow, ecCol];
+  }
+
+  // Place blocked cells
+  for (let i = 0; i < params.blockedCells; i++) {
+    let attempts = 0;
+    while (attempts < 40) {
+      attempts++;
+      const r = rng.nextInt(1, gs - 2);
+      const c = rng.nextInt(1, gs - 2);
+      if (grid[r][c].state !== "empty") continue;
+      // Don't block near source
+      if (Math.abs(r - sourceRow) + Math.abs(c - sourceCol) <= 2) continue;
+
+      grid[r][c].state = "blocked";
+
+      // Check path still exists (to end crystal if present, otherwise just verify we haven't boxed things in)
+      if (endCrystalPos && !hasPath(grid, [sourceRow, sourceCol], endCrystalPos, gs)) {
+        grid[r][c].state = "empty"; // undo
+      } else {
         break;
       }
     }
-
-    if (!found) stack.pop();
   }
 
-  // Assign tile types based on connection count
-  const tiles: Tile[][] = Array.from({ length: rows }, (_, r) =>
-    Array.from({ length: cols }, (_, c) => {
-      const conns = links[r][c].sort();
-      let type: TileType;
-      let solvedRotation = 0;
+  // Place reservoir (Hard only)
+  let reservoirPos: [number, number] | null = null;
+  if (params.hasReservoir) {
+    let attempts = 0;
+    while (attempts < 40) {
+      attempts++;
+      const r = rng.nextInt(2, gs - 3);
+      const c = rng.nextInt(2, gs - 3);
+      if (grid[r][c].state !== "empty") continue;
+      grid[r][c].state = "reservoir";
+      reservoirPos = [r, c];
+      break;
+    }
+  }
 
-      if (conns.length === 4) {
-        type = "cross";
-        solvedRotation = 0;
-      } else if (conns.length === 3) {
-        type = "tee";
-        // Tee base connects 0,1,2 (up,right,down). Find rotation so base matches.
-        // The "missing" direction determines rotation
-        const missing = [0, 1, 2, 3].find((d) => !conns.includes(d))!;
-        // Tee's missing direction in base is 3 (left). Rotate so missing aligns.
-        solvedRotation = (missing - 3 + 4) % 4;
-      } else if (conns.length === 2) {
-        const [a, b] = conns;
-        if ((a + 2) % 4 === b) {
-          // Opposite directions = straight
-          type = "straight";
-          solvedRotation = a % 2 === 0 ? 0 : 1;
-        } else {
-          // Adjacent directions = corner
-          type = "corner";
-          // Corner base connects 0,1 (up,right). Find rotation.
-          // We need the smallest direction in the pair, then rotate
-          if ((a === 0 && b === 1) || (a === 1 && b === 0)) solvedRotation = 0;
-          else if ((a === 1 && b === 2) || (a === 2 && b === 1)) solvedRotation = 1;
-          else if ((a === 2 && b === 3) || (a === 3 && b === 2)) solvedRotation = 2;
-          else solvedRotation = 3; // 3,0
-        }
-      } else {
-        // 1 connection (leaf) or 0 — treat as straight pointing to the connection
-        type = "straight";
-        solvedRotation = conns.length > 0 ? (conns[0] % 2 === 0 ? 0 : 1) : 0;
-      }
+  // Generate pipe queue
+  const queue = generateQueue(rng, queueSize);
 
-      // Randomize rotation for the puzzle
-      const randomRotation = rng.nextInt(0, 3);
+  return {
+    grid,
+    gridSize: gs,
+    sourcePos: [sourceRow, sourceCol],
+    sourceExitDir,
+    endCrystalPos,
+    reservoirPos,
+    queue,
+    queueSize,
+    score: 0,
+    segmentCount: 0,
+    penalties: 0,
+    flowActive: false,
+    flowHead: null,
+    flowTimer: 0,
+    flowSpeed: params.flowSpeed,
+    baseFlowSpeed: params.flowSpeed,
+    initialDelay: params.flowDelay,
+    delayTimer: params.flowDelay,
+    gameOver: false,
+    reachedEndCrystal: false,
+    minSegments: params.minSegments,
+    replaceCooldown: 0,
+  };
+}
 
-      return {
-        type,
-        rotation: randomRotation,
-        row: r,
-        col: c,
-        isSource: r === 0 && c === 0,
-        isTarget: r === rows - 1 && c === cols - 1,
+// ===== GAME ACTIONS =====
+
+/**
+ * Place the next pipe from the queue onto the grid.
+ */
+export function placePipe(
+  state: ArcaneConduitState,
+  row: number,
+  col: number,
+  rng: ReturnType<typeof createRNG>
+): ArcaneConduitState {
+  if (state.gameOver) return state;
+  if (state.replaceCooldown > 0) return state;
+
+  const cell = state.grid[row][col];
+
+  // Can't place on special cells
+  if (cell.state === "blocked" || cell.state === "source" || cell.state === "end-crystal") {
+    return state;
+  }
+
+  // Can't replace locked (flow-entered) pipes
+  if (cell.locked) return state;
+
+  const s = deepCopyState(state);
+  const nextPipe = s.queue.shift()!;
+
+  // Replacing an existing unused pipe
+  if (s.grid[row][col].pipe !== null) {
+    s.penalties++;
+    s.score--;
+    s.replaceCooldown = 0.3; // 300ms cooldown
+  }
+
+  s.grid[row][col].pipe = nextPipe;
+  s.grid[row][col].flowFilled = false;
+  s.grid[row][col].flowProgress = 0;
+  s.grid[row][col].flowDirections = [];
+
+  // Add new pipe to queue
+  s.queue.push(generatePipe(rng));
+
+  // Ensure variety every 7 pieces
+  if (s.queue.length >= 7) {
+    ensureVariety(s.queue, rng, s.queue.length - 7);
+  }
+
+  return s;
+}
+
+/**
+ * Tick the game state forward by dt seconds.
+ */
+export function tickArcaneConduit(
+  state: ArcaneConduitState,
+  dt: number,
+  rng: ReturnType<typeof createRNG>
+): ArcaneConduitState {
+  if (state.gameOver) return state;
+
+  const s = deepCopyState(state);
+
+  // Cooldown
+  if (s.replaceCooldown > 0) {
+    s.replaceCooldown = Math.max(0, s.replaceCooldown - dt);
+  }
+
+  // Initial delay
+  if (!s.flowActive) {
+    s.delayTimer -= dt;
+    if (s.delayTimer <= 0) {
+      s.flowActive = true;
+      // Flow starts: first cell is adjacent to source in the exit direction
+      const nr = s.sourcePos[0] + DR[s.sourceExitDir];
+      const nc = s.sourcePos[1] + DC[s.sourceExitDir];
+      s.flowHead = {
+        row: nr,
+        col: nc,
+        enterDir: OPPOSITE[s.sourceExitDir],
       };
-    })
-  );
+      s.flowTimer = s.flowSpeed;
 
-  // Store solved rotations as metadata so we can verify
-  // We need to re-derive them for checkSolved instead
+      // Mark source as filled
+      s.grid[s.sourcePos[0]][s.sourcePos[1]].flowFilled = true;
+      s.grid[s.sourcePos[0]][s.sourcePos[1]].flowProgress = 1;
+      s.grid[s.sourcePos[0]][s.sourcePos[1]].locked = true;
+    }
+    return s;
+  }
 
-  return { rows, cols, tiles };
-}
-
-/**
- * Check if the grid is solved — flood fill from source through connected pipes.
- */
-export function checkSolved(grid: Grid): boolean {
-  const visited: boolean[][] = Array.from({ length: grid.rows }, () =>
-    Array(grid.cols).fill(false)
-  );
-
-  const queue: [number, number][] = [[0, 0]];
-  visited[0][0] = true;
-
-  while (queue.length > 0) {
-    const [r, c] = queue.shift()!;
-    const tile = grid.tiles[r][c];
-
-    for (const dir of getConnections(tile)) {
-      const nr = r + DR[dir];
-      const nc = c + DC[dir];
-
-      if (nr < 0 || nr >= grid.rows || nc < 0 || nc >= grid.cols) continue;
-      if (visited[nr][nc]) continue;
-
-      const neighbor = grid.tiles[nr][nc];
-      // Check if neighbor connects back
-      if (connects(neighbor, OPPOSITE[dir])) {
-        visited[nr][nc] = true;
-        queue.push([nr, nc]);
+  // Flow animation on current head
+  if (s.flowHead) {
+    const { row, col } = s.flowHead;
+    if (row >= 0 && row < s.gridSize && col >= 0 && col < s.gridSize) {
+      const cell = s.grid[row][col];
+      if (cell.pipe && cell.flowFilled && cell.flowProgress < 1) {
+        // Flow speed adjustment for reservoir
+        let speed = s.flowSpeed;
+        if (cell.state === "reservoir") speed *= 2; // half speed = double time
+        cell.flowProgress = Math.min(1, cell.flowProgress + dt / speed);
       }
     }
   }
 
-  return visited[grid.rows - 1][grid.cols - 1];
-}
+  // Flow timer
+  s.flowTimer -= dt;
+  if (s.flowTimer <= 0) {
+    s.flowTimer += s.flowSpeed;
 
-/**
- * Get all cells reachable from source (for visual energy flow).
- */
-export function getConnectedCells(grid: Grid): boolean[][] {
-  const visited: boolean[][] = Array.from({ length: grid.rows }, () =>
-    Array(grid.cols).fill(false)
-  );
+    // Advance flow
+    if (s.flowHead) {
+      const { row, col, enterDir } = s.flowHead;
 
-  const queue: [number, number][] = [[0, 0]];
-  visited[0][0] = true;
+      // Check bounds
+      if (row < 0 || row >= s.gridSize || col < 0 || col >= s.gridSize) {
+        s.gameOver = true;
+        return s;
+      }
 
-  while (queue.length > 0) {
-    const [r, c] = queue.shift()!;
-    const tile = grid.tiles[r][c];
+      const cell = s.grid[row][col];
 
-    for (const dir of getConnections(tile)) {
-      const nr = r + DR[dir];
-      const nc = c + DC[dir];
+      // Check if there's a pipe that accepts flow from this direction
+      if (!cell.pipe || !acceptsFlowFrom(cell.pipe, enterDir)) {
+        s.gameOver = true;
+        return s;
+      }
 
-      if (nr < 0 || nr >= grid.rows || nc < 0 || nc >= grid.cols) continue;
-      if (visited[nr][nc]) continue;
+      // Check if this direction was already used on this pipe
+      const alreadyUsedThisDir = cell.flowDirections.includes(enterDir);
 
-      const neighbor = grid.tiles[nr][nc];
-      if (connects(neighbor, OPPOSITE[dir])) {
-        visited[nr][nc] = true;
-        queue.push([nr, nc]);
+      if (!alreadyUsedThisDir) {
+        // Fill this cell
+        cell.flowFilled = true;
+        cell.flowProgress = 0; // start animation
+        cell.locked = true;
+        cell.flowDirections.push(enterDir);
+        s.segmentCount++;
+        s.score++;
+
+        // Cross bonus: if this is the second direction pair used
+        if (cell.pipe === "cross" && cell.flowDirections.length > 1) {
+          s.score += 3;
+        }
+
+        // Check end crystal
+        if (s.endCrystalPos && row === s.endCrystalPos[0] && col === s.endCrystalPos[1]) {
+          s.reachedEndCrystal = true;
+          s.score += 5;
+        }
+
+        // Speed increase: 2% faster every 5 segments
+        if (s.segmentCount % 5 === 0) {
+          s.flowSpeed = s.flowSpeed * 0.98;
+        }
+      }
+
+      // Get exit direction
+      const exitDir = getExitDirection(cell.pipe, enterDir);
+      if (exitDir === -1) {
+        s.gameOver = true;
+        return s;
+      }
+
+      // Next cell
+      const nextRow = row + DR[exitDir];
+      const nextCol = col + DC[exitDir];
+      s.flowHead = {
+        row: nextRow,
+        col: nextCol,
+        enterDir: OPPOSITE[exitDir],
+      };
+
+      // Reservoir slowdown: double the timer for next step
+      if (cell.state === "reservoir") {
+        s.flowTimer += s.flowSpeed; // extra time
       }
     }
   }
 
-  return visited;
+  return s;
+}
+
+/**
+ * Get cells that are 1-3 segments ahead of the flow and have open/missing pipes.
+ * Used for the warning flash effect.
+ */
+export function getWarningCells(state: ArcaneConduitState): [number, number][] {
+  if (!state.flowHead || state.gameOver) return [];
+
+  const warnings: [number, number][] = [];
+  let head = { ...state.flowHead };
+
+  for (let i = 0; i < 3; i++) {
+    const { row, col, enterDir } = head;
+    if (row < 0 || row >= state.gridSize || col < 0 || col >= state.gridSize) break;
+
+    const cell = state.grid[row][col];
+    if (!cell.pipe || !acceptsFlowFrom(cell.pipe, enterDir)) {
+      warnings.push([row, col]);
+      break;
+    }
+
+    const exitDir = getExitDirection(cell.pipe, enterDir);
+    if (exitDir === -1) break;
+
+    const nextRow = row + DR[exitDir];
+    const nextCol = col + DC[exitDir];
+    head = { row: nextRow, col: nextCol, enterDir: OPPOSITE[exitDir] };
+  }
+
+  return warnings;
+}
+
+// ===== HELPERS =====
+
+function deepCopyState(state: ArcaneConduitState): ArcaneConduitState {
+  return {
+    ...state,
+    grid: state.grid.map((row) =>
+      row.map((cell) => ({
+        ...cell,
+        flowDirections: [...cell.flowDirections],
+      }))
+    ),
+    queue: [...state.queue],
+    sourcePos: [...state.sourcePos] as [number, number],
+    endCrystalPos: state.endCrystalPos ? [...state.endCrystalPos] as [number, number] : null,
+    reservoirPos: state.reservoirPos ? [...state.reservoirPos] as [number, number] : null,
+    flowHead: state.flowHead ? { ...state.flowHead } : null,
+  };
 }

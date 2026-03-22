@@ -40,6 +40,44 @@ export function getSkillBonus(
 }
 
 /**
+ * All D&D skills + raw ability scores for the skill override dropdown.
+ */
+export const ALL_SKILL_OPTIONS: { value: string; label: string }[] = [
+  { value: "default", label: "Default (game standard)" },
+  // STR
+  { value: "Athletics", label: "STR / Athletics" },
+  // DEX
+  { value: "Acrobatics", label: "DEX / Acrobatics" },
+  { value: "Sleight of Hand", label: "DEX / Sleight of Hand" },
+  { value: "Stealth", label: "DEX / Stealth" },
+  // CON (no skills)
+  // INT
+  { value: "Arcana", label: "INT / Arcana" },
+  { value: "History", label: "INT / History" },
+  { value: "Investigation", label: "INT / Investigation" },
+  { value: "Nature", label: "INT / Nature" },
+  { value: "Religion", label: "INT / Religion" },
+  // WIS
+  { value: "Animal Handling", label: "WIS / Animal Handling" },
+  { value: "Insight", label: "WIS / Insight" },
+  { value: "Medicine", label: "WIS / Medicine" },
+  { value: "Perception", label: "WIS / Perception" },
+  { value: "Survival", label: "WIS / Survival" },
+  // CHA
+  { value: "Deception", label: "CHA / Deception" },
+  { value: "Intimidation", label: "CHA / Intimidation" },
+  { value: "Performance", label: "CHA / Performance" },
+  { value: "Persuasion", label: "CHA / Persuasion" },
+  // Raw abilities
+  { value: "raw_strength", label: "STR (raw)" },
+  { value: "raw_dexterity", label: "DEX (raw)" },
+  { value: "raw_constitution", label: "CON (raw)" },
+  { value: "raw_intelligence", label: "INT (raw)" },
+  { value: "raw_wisdom", label: "WIS (raw)" },
+  { value: "raw_charisma", label: "CHA (raw)" },
+];
+
+/**
  * Default skill mappings for each game.
  * Maps game ID to { skill, ability } where skill is the D&D skill name
  * and ability is the parent ability score field.

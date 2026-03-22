@@ -14,6 +14,7 @@ export async function GET() {
           players: JSON.parse(session.players),
           results: JSON.parse(session.results),
           config: JSON.parse(session.config),
+          retryRequests: JSON.parse(session.retryRequests),
         }
       : null,
     lastUpdated: new Date().toISOString(),

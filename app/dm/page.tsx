@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { usePlayer } from "@/lib/player-context";
 import { PLAYERS, getPlayerColor, POLL_INTERVAL_MS } from "@/lib/players";
 import { GAMES, type GameDefinition, type GameConfigOption } from "@/lib/games/registry";
-import { DEFAULT_SKILL_MAPPINGS } from "@/lib/games/difficulty";
+import { DEFAULT_SKILL_MAPPINGS, ALL_SKILL_OPTIONS } from "@/lib/games/difficulty";
 
 interface SeatingLockData {
   locked: boolean;
@@ -664,6 +664,16 @@ interface ActiveSession {
   currentRound: number;
   roundData: string;
   config: Record<string, unknown>;
+  retryRequests: { playerName: string; requestedAt: string }[];
+}
+
+interface RetryRequest {
+  sessionId: string;
+  gameId: string;
+  gameName: string;
+  playerName: string;
+  score: number | null;
+  requestedAt: string;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -689,6 +699,8 @@ function GameLauncher({
   const [timeLimit, setTimeLimit] = useState(0);
   const [gameConfig, setGameConfig] = useState<Record<string, unknown>>({});
   const [launching, setLaunching] = useState(false);
+  const [retryRequests, setRetryRequests] = useState<RetryRequest[]>([]);
+  const [retryExpanded, setRetryExpanded] = useState(false);
 
   const fetchActive = useCallback(async () => {
     try {
@@ -700,13 +712,46 @@ function GameLauncher({
     } catch {}
   }, []);
 
+  const fetchRetryRequests = useCallback(async () => {
+    try {
+      const res = await fetch("/api/games/retry-requests");
+      if (res.ok) {
+        const data = await res.json();
+        setRetryRequests(data.requests || []);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     fetchActive();
+    fetchRetryRequests();
     const interval = setInterval(() => {
-      if (document.visibilityState === "visible") fetchActive();
+      if (document.visibilityState === "visible") {
+        fetchActive();
+        fetchRetryRequests();
+      }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [fetchActive]);
+  }, [fetchActive, fetchRetryRequests]);
+
+  const handleApproveRetry = async (sessionId: string, playerName: string) => {
+    await fetch(`/api/games/${sessionId}/approve-retry`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ playerName }),
+    });
+    fetchRetryRequests();
+    fetchActive();
+  };
+
+  const handleDenyRetry = async (sessionId: string, playerName: string) => {
+    await fetch(`/api/games/${sessionId}/deny-retry`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ playerName }),
+    });
+    fetchRetryRequests();
+  };
 
   const selectGame = (game: GameDefinition) => {
     setSelectedGame(game);
@@ -776,6 +821,62 @@ function GameLauncher({
       <h2 className="mb-3 font-cinzel text-lg font-bold text-gold">
         Game Launcher
       </h2>
+
+      {/* ===== RETRY REQUESTS NOTIFICATION BAR ===== */}
+      {retryRequests.length > 0 && (
+        <div className="mb-3 rounded border border-yellow-500/30 bg-yellow-500/5">
+          <button
+            onClick={() => setRetryExpanded(!retryExpanded)}
+            className="flex w-full items-center justify-between p-2.5 text-left"
+          >
+            <span className="text-xs font-bold text-yellow-300">
+              🔄 {retryRequests.length} retry request{retryRequests.length !== 1 ? "s" : ""} pending
+            </span>
+            <span className="text-[10px] text-gray-500">{retryExpanded ? "▲" : "▼"}</span>
+          </button>
+          {retryExpanded && (
+            <div className="border-t border-yellow-500/20 px-2.5 pb-2.5">
+              {retryRequests.map((req) => (
+                <div
+                  key={`${req.sessionId}-${req.playerName}`}
+                  className="mt-2 flex items-center justify-between gap-2"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: getPlayerColor(req.playerName) }}
+                      >
+                        {req.playerName}
+                      </span>
+                      <span className="text-[10px] text-gray-500">—</span>
+                      <span className="text-[10px] text-gray-400">{req.gameName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                      {req.score !== null && <span>Score: {req.score}</span>}
+                      <span>{new Date(req.requestedAt).toLocaleTimeString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handleApproveRetry(req.sessionId, req.playerName)}
+                      className="rounded bg-green-600/20 px-2 py-0.5 text-[10px] font-bold text-green-400 hover:bg-green-600/30"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleDenyRetry(req.sessionId, req.playerName)}
+                      className="rounded bg-red-600/20 px-2 py-0.5 text-[10px] font-bold text-red-400 hover:bg-red-600/30"
+                    >
+                      Deny
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== ACTIVE SESSION DASHBOARD ===== */}
       {activeSession && (
@@ -1008,6 +1109,31 @@ function GameLauncher({
             </p>
           </div>
 
+          {/* Skill override */}
+          <div className="mb-3">
+            <p className="mb-1.5 text-[10px] font-bold uppercase text-gray-500">
+              Skill Override
+            </p>
+            <select
+              value={String(gameConfig.skillOverride ?? "default")}
+              onChange={(e) =>
+                setGameConfig((prev) => ({ ...prev, skillOverride: e.target.value }))
+              }
+              className="rounded border border-gray-700 bg-background px-2 py-1 text-xs text-white"
+            >
+              {ALL_SKILL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.value === "default" && selectedGame.skillDisplay
+                    ? `Default (${selectedGame.skillDisplay})`
+                    : opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-0.5 text-[9px] text-gray-600">
+              Affects difficulty scaling based on character sheets
+            </p>
+          </div>
+
           {/* Time limit (if game uses it) */}
           {selectedGame.defaultTimeLimit > 0 && (
             <div className="mb-3">
@@ -1060,6 +1186,30 @@ function GameLauncher({
               ))}
             </div>
           )}
+
+          {/* Launch preview summary */}
+          <div className="mb-3 rounded border border-gold/20 bg-gold/5 p-3">
+            <p className="text-xs font-bold text-gold">
+              {selectedGame.icon} {selectedGame.name} — <span className="capitalize">{difficulty}</span>
+            </p>
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-400">
+              {timeLimit > 0 && <span>Time: {timeLimit}s</span>}
+              {timeLimit === 0 && selectedGame.defaultTimeLimit === 0 && <span>Time: None</span>}
+              <span>
+                Skill: {gameConfig.skillOverride && gameConfig.skillOverride !== "default"
+                  ? ALL_SKILL_OPTIONS.find((o) => o.value === gameConfig.skillOverride)?.label || String(gameConfig.skillOverride)
+                  : selectedGame.skillDisplay || "None"}
+              </span>
+              {selectedGame.configOptions?.map((opt) => {
+                const val = gameConfig[opt.key] ?? opt.default;
+                if (opt.options) {
+                  const label = opt.options.find((o) => String(o.value) === String(val))?.label;
+                  if (label) return <span key={opt.key}>{opt.label}: {label}</span>;
+                }
+                return <span key={opt.key}>{opt.label}: {String(val)}</span>;
+              })}
+            </div>
+          </div>
 
           {/* Launch button */}
           <button

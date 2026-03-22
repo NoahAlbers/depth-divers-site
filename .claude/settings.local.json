@@ -19,7 +19,9 @@
       "Bash(grep -r \"DEFAULT_SKILL_MAPPINGS\\\\|getSkillBonus\" /c/Users/alber/Desktop/depth-divers-site/app /c/Users/alber/Desktop/depth-divers-site/components --include=*.tsx --include=*.ts)",
       "Bash(mkdir -p \"C:\\\\Users\\\\alber\\\\Desktop\\\\depth-divers-site\\\\app\\\\api\\\\games\\\\[sessionId]\\\\round-submit\")",
       "Bash(mkdir -p \"C:\\\\Users\\\\alber\\\\Desktop\\\\depth-divers-site\\\\app\\\\api\\\\games\\\\[sessionId]\\\\round-status\")",
-      "Bash(mkdir -p \"C:\\\\Users\\\\alber\\\\Desktop\\\\depth-divers-site\\\\app\\\\api\\\\games\\\\[sessionId]\\\\advance-round\")"
+      "Bash(mkdir -p \"C:\\\\Users\\\\alber\\\\Desktop\\\\depth-divers-site\\\\app\\\\api\\\\games\\\\[sessionId]\\\\advance-round\")",
+      "Bash(grep:*)",
+      "Bash(find /c/Users/alber/Desktop/depth-divers-site -name app.tsx -o -name _app.tsx -o -name service-worker* -o -name sw.ts)"
     ]
   }
 }

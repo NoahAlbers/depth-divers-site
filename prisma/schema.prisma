@@ -126,9 +126,10 @@ model GameSession {
   players      String    @default("[]") // JSON array of player names
   results      String    @default("[]") // JSON array of { playerName, score, completedAt, metadata }
   config       String    @default("{}") // JSON: game-specific configuration
-  currentRound Int       @default(0) // for multi-round games (e.g., Underdark Telephone)
-  roundData    String    @default("[]") // JSON: chain/round data for multi-round games
-  createdAt    DateTime  @default(now())
+  currentRound   Int       @default(0) // for multi-round games (e.g., Underdark Telephone)
+  roundData      String    @default("[]") // JSON: chain/round data for multi-round games
+  retryRequests  String    @default("[]") // JSON: [{ playerName, requestedAt }]
+  createdAt      DateTime  @default(now())
   startedAt    DateTime?
   endedAt      DateTime?
 }

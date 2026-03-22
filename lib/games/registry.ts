@@ -39,7 +39,7 @@ export const GAMES: GameDefinition[] = [
     id: "arcane-conduit",
     name: "Arcane Conduit",
     description:
-      "Rotate pipe segments to connect arcane energy from the source crystal to the target rune. Fastest solve wins.",
+      "Place random pipe pieces on the grid before the flowing arcane energy reaches a dead end. Build fast, build smart!",
     icon: "🔮",
     minPlayers: 1,
     maxPlayers: 6,
@@ -49,16 +49,42 @@ export const GAMES: GameDefinition[] = [
     estimatedTime: "~2-5 min",
     skillDisplay: "INT / Arcana",
     howToPlay: [
-      "Rotate pipe segments by tapping/clicking them",
-      "Connect the flow from the source crystal to the target rune",
-      "Complete the circuit as fast as you can",
-      "Fastest solve time wins",
+      "Pipe pieces appear in a queue — tap a cell to place the next piece",
+      "Arcane energy starts flowing after a delay — build ahead of it!",
+      "If the flow reaches an open end, the run is over",
+      "Score 1 point per segment the flow passes through",
+      "Replace unused pipes (small penalty) to fix your path",
     ],
     difficultyDescriptions: {
-      easy: "Small grid, fewer pipe segments",
-      medium: "Standard grid with more complexity",
-      hard: "Large grid with many branching paths",
+      easy: "7x7 grid, 8s delay, slow flow — relaxed pace",
+      medium: "9x9 grid, 5s delay, faster flow, blocked cells",
+      hard: "10x10 grid, 3s delay, fast flow, blocked cells + reservoir + end crystal",
     },
+    configOptions: [
+      {
+        key: "rounds",
+        label: "Rounds",
+        type: "select",
+        default: 1,
+        options: [
+          { value: 1, label: "1 round" },
+          { value: 3, label: "3 rounds" },
+          { value: 5, label: "5 rounds" },
+        ],
+      },
+      {
+        key: "timeLimit",
+        label: "Time Limit",
+        type: "select",
+        default: 0,
+        options: [
+          { value: 0, label: "None (play until overflow)" },
+          { value: 60, label: "60 seconds" },
+          { value: 120, label: "120 seconds" },
+          { value: 180, label: "180 seconds" },
+        ],
+      },
+    ],
   },
   {
     id: "rune-echoes",
@@ -84,6 +110,30 @@ export const GAMES: GameDefinition[] = [
       medium: "Standard speed and rune count",
       hard: "Fast flashes, more runes to track",
     },
+    configOptions: [
+      {
+        key: "startingLength",
+        label: "Starting Sequence Length",
+        type: "select",
+        default: 3,
+        options: [
+          { value: 3, label: "3 (standard)" },
+          { value: 4, label: "4 (longer)" },
+          { value: 5, label: "5 (challenging)" },
+        ],
+      },
+      {
+        key: "flashSpeed",
+        label: "Flash Speed",
+        type: "select",
+        default: "normal",
+        options: [
+          { value: "slow", label: "Slow" },
+          { value: "normal", label: "Normal" },
+          { value: "fast", label: "Fast" },
+        ],
+      },
+    ],
   },
   {
     id: "glyph-race",
@@ -148,6 +198,19 @@ export const GAMES: GameDefinition[] = [
       medium: "Standard speed and density",
       hard: "Fast, dense debris — react quickly!",
     },
+    configOptions: [
+      {
+        key: "startingSpeed",
+        label: "Starting Speed",
+        type: "select",
+        default: "normal",
+        options: [
+          { value: "slow", label: "Slow" },
+          { value: "normal", label: "Normal" },
+          { value: "fast", label: "Fast" },
+        ],
+      },
+    ],
   },
   {
     id: "spider-swat",
@@ -186,6 +249,16 @@ export const GAMES: GameDefinition[] = [
           { value: 30, label: "30 seconds" },
         ],
       },
+      {
+        key: "penaltyMushrooms",
+        label: "Penalty Mushrooms",
+        type: "select",
+        default: "yes",
+        options: [
+          { value: "yes", label: "Yes" },
+          { value: "no", label: "No" },
+        ],
+      },
     ],
   },
   {
@@ -213,6 +286,30 @@ export const GAMES: GameDefinition[] = [
       medium: "Tighter corridors with turns",
       hard: "Narrow passages, complex maze",
     },
+    configOptions: [
+      {
+        key: "timer",
+        label: "Timer",
+        type: "select",
+        default: 0,
+        options: [
+          { value: 0, label: "None" },
+          { value: 30, label: "30 seconds" },
+          { value: 60, label: "60 seconds" },
+          { value: 90, label: "90 seconds" },
+        ],
+      },
+      {
+        key: "movingPins",
+        label: "Moving Pins",
+        type: "select",
+        default: "no",
+        options: [
+          { value: "yes", label: "Yes" },
+          { value: "no", label: "No" },
+        ],
+      },
+    ],
   },
   {
     id: "stealth-sequence",
@@ -240,6 +337,31 @@ export const GAMES: GameDefinition[] = [
       medium: "9x9 grid, 4 guards, 1.2s beats — requires timing",
       hard: "11x11 grid, 7 guards, 1.0s beats — precise timing required",
     },
+    configOptions: [
+      {
+        key: "gridSizeOverride",
+        label: "Grid Size",
+        type: "select",
+        default: "auto",
+        options: [
+          { value: "auto", label: "Auto (by difficulty)" },
+          { value: 7, label: "7x7" },
+          { value: 9, label: "9x9" },
+          { value: 11, label: "11x11" },
+        ],
+      },
+      {
+        key: "guardCountOverride",
+        label: "Extra Guards",
+        type: "select",
+        default: "auto",
+        options: [
+          { value: "auto", label: "Auto (by difficulty)" },
+          { value: 1, label: "+1 guard" },
+          { value: 2, label: "+2 guards" },
+        ],
+      },
+    ],
   },
   {
     id: "drinking-contest",
@@ -269,14 +391,14 @@ export const GAMES: GameDefinition[] = [
     },
     configOptions: [
       {
-        key: "startingDifficulty",
-        label: "Starting Speed",
+        key: "startingRound",
+        label: "Starting Round",
         type: "select",
-        default: "normal",
+        default: 1,
         options: [
-          { value: "slow", label: "Slow" },
-          { value: "normal", label: "Normal" },
-          { value: "fast", label: "Fast" },
+          { value: 1, label: "Round 1 (start easy)" },
+          { value: 5, label: "Round 5 (skip easy rounds)" },
+          { value: 10, label: "Round 10 (experienced drinkers)" },
         ],
       },
     ],
@@ -314,6 +436,18 @@ export const GAMES: GameDefinition[] = [
         default: 180,
         min: 60,
         max: 600,
+      },
+      {
+        key: "nodeCount",
+        label: "Number of Nodes",
+        type: "select",
+        default: 4,
+        options: [
+          { value: 3, label: "3 (easier)" },
+          { value: 4, label: "4 (standard)" },
+          { value: 5, label: "5 (harder)" },
+          { value: 6, label: "6 (very hard)" },
+        ],
       },
     ],
   },
