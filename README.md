@@ -2,9 +2,9 @@
 
 **A D&D campaign companion web app that turns your table into a connected experience.**
 
-Depth Divers is an open-source web application built for tabletop RPG groups. It gives every player a connected screen at the table — enabling secret messaging, real-time initiative tracking, cooperative and competitive minigames, and tools that replace dice rolls with actual player skill.
+Depth Divers is an open-source web application built for tabletop RPG groups. It gives every player a connected screen at the table, enabling secret messaging, real-time initiative tracking, cooperative and competitive minigames, and tools that replace dice rolls with actual player skill.
 
-Originally built for an Out of the Abyss campaign set in the Underdark, but designed to work with any D&D 5e game.
+Currently built for an Out of the Abyss campaign set in the Underdark, but eventually will be designed to work with any D&D 5e game.
 
  **Live site**: [depthdivers.com](https://depthdivers.com)
 
