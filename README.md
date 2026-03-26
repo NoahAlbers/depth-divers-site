@@ -7,6 +7,7 @@ Depth Divers is an open-source web application built for tabletop RPG groups. It
 Currently built for an Out of the Abyss campaign set in the Underdark, but eventually will be designed to work with any D&D 5e game.
 
  **Live site**: [depthdivers.com](https://depthdivers.com)
+<img width="1207" height="799" alt="image" src="https://github.com/user-attachments/assets/92f1c1fe-76c4-490f-b198-8da84a134276" />
 
 ---
 
