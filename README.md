@@ -13,10 +13,10 @@ Currently built for an Out of the Abyss campaign set in the Underdark, but event
 ## Features
 
 ### Messaging System
-A full messaging platform with direct messages, group chats, and a shared pinboard per conversation. Supports in-character (IC) and out-of-character (OOC) message tagging, emoji reactions with personalized quick-access rows, read receipts, markdown formatting, and link previews. The DM has a god-mode view that sees all messages — including player-to-player private chats — without the players knowing.
+A full messaging platform with direct messages, group chats, and a shared pinboard per conversation. Supports in-character (IC) and out-of-character (OOC) message tagging, emoji reactions with personalized quick-access rows, read receipts, markdown formatting, and link previews. The DM has a god-mode view that sees all messages, including player-to-player private chats, without the players knowing.
 
 ### Initiative Tracker
-Real-time combat initiative tracker with a three-phase system: the DM opens an encounter, players submit their own rolls, and the DM locks and sorts the order. Players see the live turn order on their phones. The DM advances turns, adds monsters, and resets encounters — all synced to every player's screen within seconds.
+Real-time combat initiative tracker with a three-phase system: the DM opens an encounter, players submit their own rolls, and the DM locks and sorts the order. Players see the live turn order on their phones. The DM advances turns, adds monsters, and resets encounters, all synced to every player's screen within seconds.
 
 ### Minigames & Puzzles
 A game framework with a lobby system, DM-controlled launcher, and a growing library of D&D-themed games. Games run locally on each player's device with seeded randomness for competitive fairness, and player ability scores influence difficulty. Current games include:
