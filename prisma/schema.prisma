@@ -9,10 +9,11 @@ datasource db {
 }
 
 model Player {
-  id       String  @id @default(cuid())
-  name     String  @unique
-  password String
-  color    String? // custom hex color, null = use default
+  id           String    @id @default(cuid())
+  name         String    @unique
+  password     String
+  color        String?   // custom hex color, null = use default
+  lastActiveAt DateTime?
 }
 
 model Message {
@@ -66,6 +67,7 @@ model MessageV2 {
   from           String
   body           String
   tag            String?  // "IC", "OOC", or null
+  imageUrl       String?  // URL of attached image, null if text-only
   createdAt      DateTime @default(now())
 
   @@index([conversationId, createdAt])
@@ -152,6 +154,8 @@ model CharacterSheet {
   id             String   @id @default(cuid())
   playerName     String   @unique
   characterName  String   @default("")
+  race           String?
+  class          String?  @map("char_class")
   level          Int      @default(1)
   movementSpeed  Int      @default(30)
   strength       Int      @default(10)
@@ -189,4 +193,29 @@ model Poll {
   votes       String    @default("{}") // JSON: { playerName: optionIndex }
   createdAt   DateTime  @default(now())
   closedAt    DateTime?
+}
+
+// --- Achievements ---
+
+model AchievementDefinition {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String
+  category    String
+  hidden      Boolean @default(false)
+  icon        String  @default("🏆")
+  order       Int     @default(0)
+}
+
+model PlayerAchievement {
+  id              String   @id @default(cuid())
+  playerName      String
+  achievementSlug String
+  awardedAt       DateTime @default(now())
+  awardedBy       String   @default("DM")
+  note            String?
+  sessionNumber   Int?
+
+  @@unique([playerName, achievementSlug])
 }

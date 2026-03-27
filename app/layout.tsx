@@ -7,6 +7,9 @@ import { PlayerColorsProvider } from "@/lib/player-colors-context";
 import { InstallPrompt } from "@/components/install-prompt";
 import { TimerOverlay } from "@/components/timer-overlay";
 import { PollOverlay } from "@/components/poll-overlay";
+import { Heartbeat } from "@/components/heartbeat";
+import { MessageTrayProvider } from "@/lib/message-tray-context";
+import { MessageTray } from "@/components/messaging/message-tray";
 import "./globals.css";
 
 const cinzel = Cinzel({
@@ -59,12 +62,16 @@ export default function RootLayout({
         )}
         <PlayerProvider>
           <PlayerColorsProvider>
-            <ImpersonationBanner />
-            <Nav />
-            <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
-            <TimerOverlay />
-            <PollOverlay />
-            <InstallPrompt />
+            <MessageTrayProvider>
+              <ImpersonationBanner />
+              <Nav />
+              <main className="mx-auto max-w-6xl px-4 py-6 pb-16">{children}</main>
+              <TimerOverlay />
+              <PollOverlay />
+              <InstallPrompt />
+              <Heartbeat />
+              <MessageTray />
+            </MessageTrayProvider>
           </PlayerColorsProvider>
         </PlayerProvider>
       </body>

@@ -25,7 +25,12 @@
       "Bash(cp .env.bak .env)",
       "Bash(rm .env.bak)",
       "Bash(cp .env.local.bak .env.local)",
-      "Bash(rm .env.local.bak)"
+      "Bash(rm .env.local.bak)",
+      "Bash(cp .env .env.bak)",
+      "Bash(cp .env.local .env.local.bak)",
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/api/profile/[playerName]\")",
+      "Bash(mkdir -p \"C:/Users/alber/Desktop/depth-divers-site/app/profile/[playerName]\")",
+      "Bash(sed -i 's|ep-blue-wave-amxtx37h-pooler|ep-blue-pine-amb8bhu8-pooler|g; s|ep-blue-wave-amxtx37h\\\\.|ep-blue-pine-amb8bhu8.|g; s|channel_binding=require\\\\&connect_timeout=15\\\\&sslmode=require|sslmode=require\\\\&channel_binding=require|g' .env)"
     ]
   }
 }

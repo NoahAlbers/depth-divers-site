@@ -93,11 +93,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { from, body, tag } = await request.json();
+  const { from, body, tag, imageUrl } = await request.json();
 
-  if (!from || !body?.trim()) {
+  if (!from || (!body?.trim() && !imageUrl)) {
     return NextResponse.json(
-      { error: "from and body required" },
+      { error: "from and (body or imageUrl) required" },
       { status: 400 }
     );
   }
@@ -127,8 +127,9 @@ export async function POST(
     data: {
       conversationId: id,
       from,
-      body: body.trim(),
+      body: (body || "").trim(),
       tag: tag || null,
+      imageUrl: imageUrl || null,
     },
   });
 

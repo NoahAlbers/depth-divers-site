@@ -278,6 +278,12 @@ const tools = [
     tagline: "Your stats, skills, and abilities",
     icon: "\uD83D\uDCDC",
   },
+  {
+    href: "/achievements",
+    title: "Achievements",
+    tagline: "Track your legendary deeds",
+    icon: "\uD83C\uDFC6",
+  },
 ];
 
 export default function Home() {

@@ -21,8 +21,15 @@ export async function GET(request: Request) {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sheetAny = sheet as any;
   return NextResponse.json({
-    sheet: { ...sheet, skills: JSON.parse(sheet.skills) },
+    sheet: {
+      ...sheet,
+      race: sheet.race || null,
+      class: sheetAny.class || null,
+      skills: JSON.parse(sheet.skills),
+    },
     lastUpdated: new Date().toISOString(),
   });
 }

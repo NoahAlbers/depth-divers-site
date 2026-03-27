@@ -9,6 +9,7 @@ import { GroupSettings } from "./group-settings";
 import { LinkPreviewCard } from "./link-preview-card";
 import { renderMarkdown } from "@/lib/markdown";
 import { extractUrls } from "@/lib/url-utils";
+import { ImageLightbox } from "./image-lightbox";
 
 const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
 
@@ -89,6 +90,7 @@ interface Message {
   from: string;
   body: string;
   tag: string | null;
+  imageUrl?: string | null;
   createdAt: string;
   reactions?: Reaction[];
 }
@@ -153,6 +155,7 @@ export function ChatThread({
 }: ChatThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(messages.length);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [pickerMessageId, setPickerMessageId] = useState<string | null>(null);
   const [fullPickerMessageId, setFullPickerMessageId] = useState<string | null>(null);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
@@ -263,7 +266,7 @@ export function ChatThread({
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
+      <div ref={scrollRef} data-chat-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3" style={{ overscrollBehavior: "contain" }}>
         {messages.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-500">
             No messages yet. Say something!
@@ -373,21 +376,45 @@ export function ChatThread({
                     </div>
 
                     {/* Body */}
-                    <p
-                      className={`whitespace-pre-wrap break-words text-sm ${
-                        msg.tag === "IC"
-                          ? "text-gray-200"
-                          : "text-gray-300"
-                      }`}
-                    >
-                      {renderMarkdown(renderTextWithLinks(msg.body))}
-                    </p>
-                    {(() => {
+                    {msg.body && (
+                      <p
+                        className={`whitespace-pre-wrap break-words text-sm ${
+                          msg.tag === "IC"
+                            ? "text-gray-200"
+                            : "text-gray-300"
+                        }`}
+                      >
+                        {renderMarkdown(renderTextWithLinks(msg.body))}
+                      </p>
+                    )}
+                    {msg.body && (() => {
                       const urls = extractUrls(msg.body);
                       if (urls.length === 0) return null;
                       const msgAge = (Date.now() - new Date(msg.createdAt).getTime()) / (1000 * 60 * 60 * 24);
                       return <LinkPreviewCard url={urls[0]} messageAge={msgAge} />;
                     })()}
+
+                    {/* Image */}
+                    {msg.imageUrl && (
+                      <button
+                        onClick={() => setLightboxSrc(msg.imageUrl!)}
+                        className="mt-1 block"
+                      >
+                        <img
+                          src={msg.imageUrl}
+                          alt="Shared image"
+                          loading="lazy"
+                          className="max-h-[400px] max-w-[300px] rounded border border-border object-cover"
+                          onLoad={(e) => {
+                            // Remove skeleton once loaded
+                            (e.target as HTMLElement).classList.remove("animate-pulse", "bg-surface-light");
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      </button>
+                    )}
 
                     {/* Reactions display */}
                     {msg.reactions && msg.reactions.length > 0 && (
@@ -550,6 +577,11 @@ export function ChatThread({
           }}
           onClose={() => setShowGroupSettings(false)}
         />
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
       )}
     </div>
   );

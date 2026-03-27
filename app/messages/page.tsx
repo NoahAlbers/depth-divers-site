@@ -39,6 +39,7 @@ interface Message {
   from: string;
   body: string;
   tag: string | null;
+  imageUrl: string | null;
   createdAt: string;
 }
 
@@ -228,13 +229,13 @@ export default function MessagesPage() {
     refetchConvos();
   };
 
-  const handleSend = async (body: string, tag: "IC" | "OOC" | null) => {
+  const handleSend = async (body: string, tag: "IC" | "OOC" | null, imageUrl?: string) => {
     if (!selectedId || !playerName) return;
 
     await fetch(`/api/conversations/${selectedId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: playerName, body, tag }),
+      body: JSON.stringify({ from: playerName, body: body || "", tag, imageUrl }),
     });
 
     fetchMessages();
@@ -270,7 +271,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-80px)] flex-col">
+    <div className="flex h-[calc(100dvh-80px)] flex-col">
       {mobileView === "list" && (
         <h1 className="mb-2 px-0 font-cinzel text-3xl font-bold text-gold md:mb-0 md:hidden">
           Messages
@@ -333,7 +334,18 @@ export default function MessagesPage() {
                 }}
                 showBackButton={true}
               />
-              <ChatInput onSend={handleSend} disabled={messagesLoading} />
+              <ChatInput
+                onSend={handleSend}
+                disabled={messagesLoading}
+                playerName={playerName || undefined}
+                onInputFocus={() => {
+                  // Scroll message list to bottom when mobile keyboard opens
+                  const scrollContainer = document.querySelector("[data-chat-scroll]");
+                  if (scrollContainer) {
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                  }
+                }}
+              />
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center">

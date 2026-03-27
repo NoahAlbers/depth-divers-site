@@ -43,6 +43,8 @@ interface SkillState {
 
 interface CharacterData {
   characterName: string;
+  race: string;
+  class: string;
   level: number;
   movementSpeed: number;
   strength: number;
@@ -85,6 +87,8 @@ export default function CharacterPage() {
         const json = await res.json();
         setData({
           characterName: json.sheet.characterName,
+          race: json.sheet.race || "",
+          class: json.sheet.class || "",
           level: json.sheet.level,
           movementSpeed: json.sheet.movementSpeed,
           strength: json.sheet.strength,
@@ -177,6 +181,28 @@ export default function CharacterPage() {
         <p className="mt-1 text-xs text-gray-600">
           Player: {playerName}
         </p>
+      </div>
+
+      {/* Race & Class */}
+      <div className="mb-6 grid grid-cols-2 gap-4">
+        <div className="rounded-lg border border-border bg-surface p-3">
+          <label className="mb-1 block text-xs font-bold text-gray-400">Race</label>
+          <input
+            value={data.race}
+            onChange={(e) => updateField({ race: e.target.value })}
+            placeholder="e.g. Half-Elf"
+            className="w-full rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-gold focus:outline-none"
+          />
+        </div>
+        <div className="rounded-lg border border-border bg-surface p-3">
+          <label className="mb-1 block text-xs font-bold text-gray-400">Class</label>
+          <input
+            value={data.class}
+            onChange={(e) => updateField({ class: e.target.value })}
+            placeholder="e.g. Rogue"
+            className="w-full rounded border border-gray-700 bg-background px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-gold focus:outline-none"
+          />
+        </div>
       </div>
 
       {/* Level + Movement Speed */}

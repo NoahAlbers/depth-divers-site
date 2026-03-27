@@ -5,6 +5,7 @@ import { usePlayer } from "@/lib/player-context";
 import { PLAYERS, getPlayerColor, POLL_INTERVAL_MS } from "@/lib/players";
 import { GAMES, type GameDefinition, type GameConfigOption } from "@/lib/games/registry";
 import { DEFAULT_SKILL_MAPPINGS, ALL_SKILL_OPTIONS } from "@/lib/games/difficulty";
+import { AchievementManager } from "@/components/achievements/achievement-manager";
 
 interface SeatingLockData {
   locked: boolean;
@@ -74,6 +75,9 @@ function DMDashboard({ dmPassword }: { dmPassword: string }) {
         <GameLauncher headers={headers} />
         <TimerLauncherSection headers={headers} />
         <PollLauncherSection headers={headers} />
+        <div className="lg:col-span-2">
+          <AchievementManager dmPassword={dmPassword} />
+        </div>
         <PlaceholderCard title="Session Notes" icon="📝" />
       </div>
     </div>

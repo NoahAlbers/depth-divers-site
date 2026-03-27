@@ -56,6 +56,7 @@ export function Nav() {
     { href: "/games", label: "Games" },
     { href: "/seating", label: "Seating" },
     { href: "/character", label: "Character" },
+    { href: "/achievements", label: "Achievements" },
     ...(isDM ? [{ href: "/dm", label: "DM Area" }] : []),
   ];
 
