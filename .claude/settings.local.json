@@ -21,7 +21,11 @@
       "Bash(mkdir -p \"C:\\\\Users\\\\alber\\\\Desktop\\\\depth-divers-site\\\\app\\\\api\\\\games\\\\[sessionId]\\\\round-status\")",
       "Bash(mkdir -p \"C:\\\\Users\\\\alber\\\\Desktop\\\\depth-divers-site\\\\app\\\\api\\\\games\\\\[sessionId]\\\\advance-round\")",
       "Bash(grep:*)",
-      "Bash(find /c/Users/alber/Desktop/depth-divers-site -name app.tsx -o -name _app.tsx -o -name service-worker* -o -name sw.ts)"
+      "Bash(find /c/Users/alber/Desktop/depth-divers-site -name app.tsx -o -name _app.tsx -o -name service-worker* -o -name sw.ts)",
+      "Bash(cp .env.bak .env)",
+      "Bash(rm .env.bak)",
+      "Bash(cp .env.local.bak .env.local)",
+      "Bash(rm .env.local.bak)"
     ]
   }
 }
