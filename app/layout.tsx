@@ -50,8 +50,13 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${cinzel.variable} ${jetbrainsMono.variable} min-h-screen bg-background text-foreground antialiased`}
+        className={`${cinzel.variable} ${jetbrainsMono.variable} min-h-screen bg-background text-foreground antialiased${process.env.NEXT_PUBLIC_ENVIRONMENT === "dev" ? " pt-6" : ""}`}
       >
+        {process.env.NEXT_PUBLIC_ENVIRONMENT === "dev" && (
+          <div className="fixed top-0 left-0 right-0 z-[200] bg-red-600 text-white text-xs text-center py-1 font-bold">
+            DEV ENVIRONMENT
+          </div>
+        )}
         <PlayerProvider>
           <PlayerColorsProvider>
             <ImpersonationBanner />
